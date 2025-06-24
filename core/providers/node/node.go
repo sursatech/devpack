@@ -236,10 +236,11 @@ func (p *NodeProvider) InstallNodeDeps(ctx *generate.GenerateContext, install *g
 	install.AddPaths([]string{"/app/node_modules/.bin"})
 
 	if p.usesCorepack() {
+		pmName, pmVersion := p.packageJson.GetPackageManagerInfo()
 		install.AddVariables(map[string]string{
 			"COREPACK_HOME": COREPACK_HOME,
 		})
-		ctx.Logger.LogInfo("Installing %s with Corepack", p.packageManager)
+		ctx.Logger.LogInfo("Installing %s@%s with Corepack", pmName, pmVersion)
 
 		install.AddCommands([]plan.Command{
 			plan.NewCopyCommand("package.json"),
@@ -337,12 +338,30 @@ func (p *NodeProvider) usesPuppeteer() bool {
 func (p *NodeProvider) getPackageManager(app *app.App) PackageManager {
 	packageManager := PackageManagerNpm
 
+	// Check packageManager field first
+	if packageJson, err := p.GetPackageJson(app); err == nil && packageJson.PackageManager != nil {
+		pmName, pmVersion := packageJson.GetPackageManagerInfo()
+		if pmName == "yarn" && pmVersion != "" {
+			majorVersion := strings.Split(pmVersion, ".")[0]
+			if majorVersion == "1" {
+				return PackageManagerYarn1
+			} else {
+				return PackageManagerYarnBerry
+			}
+		} else if pmName == "pnpm" {
+			return PackageManagerPnpm
+		} else if pmName == "bun" {
+			return PackageManagerBun
+		}
+	}
+
+	// Fall back to file-based detection
 	if app.HasMatch("pnpm-lock.yaml") {
 		packageManager = PackageManagerPnpm
 	} else if app.HasMatch("bun.lockb") || app.HasMatch("bun.lock") {
 		packageManager = PackageManagerBun
 	} else if app.HasMatch(".yarnrc.yml") || app.HasMatch(".yarnrc.yaml") {
-		packageManager = PackageManagerYarn2
+		packageManager = PackageManagerYarnBerry
 	} else if app.HasMatch("yarn.lock") {
 		packageManager = PackageManagerYarn1
 	}
