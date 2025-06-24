@@ -415,8 +415,6 @@ func (g *BuildGraph) getCacheMountOptions(cacheKeys []string) ([]llb.RunOption, 
 // 2. The command is a mise install command (exact match or starts with "mise install")
 // 3. GITHUB_TOKEN is not already in the plan's secrets
 func (g *BuildGraph) addGitHubTokenToMiseInstall(cmd plan.ExecCommand) []llb.RunOption {
-	fmt.Printf("CMD: %s\n", cmd.Cmd)
-
 	// Check if we have a GitHub token and are installing mise packages
 	if g.githubToken == "" || !isMiseInstallCommand(cmd.Cmd) {
 		return nil

@@ -142,8 +142,8 @@ func (p PackageManager) pruneYarnBerry(ctx *generate.GenerateContext, prune *gen
 	if packageJson, err := p.getPackageJsonFromContext(ctx); err == nil {
 		_, version := packageJson.GetPackageManagerInfo()
 		if version != "" && strings.HasPrefix(version, "3.") {
-			// Yarn 3 doesn't have workspaces focus command, use install and warn instead
-			ctx.Logger.LogWarn("Yarn 3 doesn't have workspaces focus command, using install instead")
+			// If you know of the proper way to prune Yarn 3, please make a PR
+			ctx.Logger.LogWarn("Yarn 3 doesn't have a prune command, using install instead")
 			prune.AddCommand(plan.NewExecCommand("yarn install --check-cache"))
 			return
 		}
