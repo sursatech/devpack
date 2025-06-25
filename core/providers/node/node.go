@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"maps"
 	"path"
+	"regexp"
 	"strings"
 
 	"github.com/railwayapp/railpack/core/app"
@@ -18,6 +19,11 @@ const (
 	DEFAULT_BUN_VERSION  = "latest"
 
 	COREPACK_HOME = "/opt/corepack"
+)
+
+var (
+	// bunCommandRegex matches "bun" or "bunx" as a command (not part of another word)
+	bunCommandRegex = regexp.MustCompile(`(^|\s|;|&|&&|\||\|\|)bunx?\s`)
 )
 
 type NodeProvider struct {
@@ -438,20 +444,32 @@ func (p *NodeProvider) requiresNode(ctx *generate.GenerateContext) bool {
 	return p.isAstro(ctx)
 }
 
+// packageJsonRequiresBun checks if a package.json's scripts use bun commands
+func packageJsonRequiresBun(packageJson *PackageJson) bool {
+	if packageJson == nil || packageJson.Scripts == nil {
+		return false
+	}
+
+	for _, script := range packageJson.Scripts {
+		if bunCommandRegex.MatchString(script) {
+			return true
+		}
+	}
+
+	return false
+}
+
+// requiresBun checks if bun should be installed and available for the build and final image
 func (p *NodeProvider) requiresBun(ctx *generate.GenerateContext) bool {
 	if p.packageManager == PackageManagerBun {
 		return true
 	}
 
-	if p.packageJson != nil {
-		for _, script := range p.packageJson.Scripts {
-			if strings.Contains(script, "bun") {
-				return true
-			}
-		}
+	if packageJsonRequiresBun(p.packageJson) {
+		return true
 	}
 
-	if ctx.Config.Deploy != nil && strings.Contains(ctx.Config.Deploy.StartCmd, "bun") {
+	if ctx.Config.Deploy != nil && bunCommandRegex.MatchString(ctx.Config.Deploy.StartCmd) {
 		return true
 	}
 
