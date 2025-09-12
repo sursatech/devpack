@@ -11,6 +11,7 @@ The following options are available across multiple commands:
 
 | Flag                    | Description                                                                                                                |
 | ----------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `--dev`                 | Generate development config (local run commands/env). Affects `deploy.startCommand` and behavior for some providers        |
 | `--env`                 | Environment variables to set. Format: `KEY=VALUE`                                                                          |
 | `--previous`            | Versions of packages used for previous builds. These versions will be used instead of the defaults. Format: `NAME@VERSION` |
 | `--build-cmd`           | Build command to use                                                                                                       |

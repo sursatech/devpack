@@ -58,6 +58,33 @@ mise run cli build $(pwd)
 
 You need to have a BuildKit instance running (see below).
 
+## Using dev mode (\`--dev\`)
+
+When developing locally, pass `--dev` to generate dev-friendly runtime configs.
+This affects the computed `deploy.startCommand` and sometimes `deploy.variables`.
+
+Examples:
+
+```bash
+# Pretty info with dev start command and env
+mise run cli info examples/node-next --dev --format=pretty
+
+# JSON info
+mise run cli info examples/python-django --dev --format=json
+
+# Plan generation in dev mode (useful for inspection and custom frontends)
+mise run cli plan examples/node-vite-vanilla --dev --out .railpack/plan.dev.json
+```
+
+Provider specifics in dev mode (high-level):
+
+- Node: prefers framework/package-manager dev scripts; SPA projects skip static server
+- Python: Django `runserver`, FastAPI `uvicorn --reload`, Flask `flask run`
+- Deno: uses `deno task dev` when present
+- Go: uses `go run` heuristics based on layout
+- Java: `gradle run` or `mvn spring-boot:run` when applicable
+- PHP: `php artisan serve` (Laravel) or `php -S` for vanilla
+
 ## Custom frontend
 
 You can build with a [custom BuildKit frontend](/guides/custom-frontend), but
@@ -119,7 +146,7 @@ mise tool poetry
 
 Here's some helpful debugging tricks:
 
-* `URFAVE_CLI_TRACING=on` for debugging CLI argument parsing
-* `mise run cli --verbose build --show-plan --progress plain examples/node-bun`
-* `mise run build`, add `./bin/` to your `$PATH`, and then run `railpack` in a separate local directory
-* `NO_COLOR=1` 
+- `URFAVE_CLI_TRACING=on` for debugging CLI argument parsing
+- `mise run cli --verbose build --show-plan --progress plain examples/node-bun`
+- `mise run build`, add `./bin/` to your `$PATH`, and then run `railpack` in a separate local directory
+- `NO_COLOR=1`
