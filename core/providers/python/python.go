@@ -75,6 +75,13 @@ func (p *PythonProvider) Plan(ctx *generate.GenerateContext) error {
 	ctx.Deploy.StartCmd = p.GetStartCommand(ctx)
 	maps.Copy(ctx.Deploy.Variables, p.GetPythonEnvVars(ctx))
 
+	// In dev mode, prefer a development server command when available
+	if ctx.Dev {
+		if devCmd := p.GetDevStartCommand(ctx); devCmd != "" {
+			ctx.Deploy.StartCmd = devCmd
+		}
+	}
+
 	installArtifacts := plan.NewStepLayer(build.Name(), plan.Filter{
 		Include: installOutputs,
 	})
@@ -116,6 +123,33 @@ func (p *PythonProvider) GetStartCommand(ctx *generate.GenerateContext) string {
 	}
 
 	return startCommand
+}
+
+// GetDevStartCommand returns a development-friendly start command
+func (p *PythonProvider) GetDevStartCommand(ctx *generate.GenerateContext) string {
+    // Django: use runserver
+    if p.isDjango(ctx) {
+        return "python manage.py runserver 0.0.0.0:${PORT:-8000}"
+    }
+
+    mainPythonFile := p.getMainPythonFile(ctx)
+    hasMainPythonFile := mainPythonFile != ""
+
+    // FastAPI (uvicorn) with reload if available
+    if p.usesDep(ctx, "fastapi") && hasMainPythonFile {
+        return "uvicorn main:app --reload --host 0.0.0.0 --port ${PORT:-8000}"
+    }
+
+    // Flask: prefer flask dev server if flask is present
+    if p.isFlask(ctx) {
+        return "flask run --host 0.0.0.0 --port ${PORT:-8000}"
+    }
+
+    if hasMainPythonFile {
+        return fmt.Sprintf("python %s", mainPythonFile)
+    }
+
+    return ""
 }
 
 func (p *PythonProvider) getMainPythonFile(ctx *generate.GenerateContext) string {

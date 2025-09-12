@@ -50,6 +50,12 @@ func (p *DenoProvider) Plan(ctx *generate.GenerateContext) error {
 	})
 	ctx.Deploy.StartCmd = p.GetStartCommand(ctx)
 
+	if ctx.Dev {
+		if dev := p.GetDevStartCommand(ctx); dev != "" {
+			ctx.Deploy.StartCmd = dev
+		}
+	}
+
 	return nil
 }
 
@@ -66,6 +72,25 @@ func (p *DenoProvider) GetStartCommand(ctx *generate.GenerateContext) string {
 	}
 
 	return fmt.Sprintf("deno run --allow-all %s", p.mainFile)
+}
+
+func (p *DenoProvider) GetDevStartCommand(ctx *generate.GenerateContext) string {
+    var dj DenoJson
+    if ctx.App.HasMatch("deno.json") {
+        if err := ctx.App.ReadJSON("deno.json", &dj); err == nil {
+            if _, ok := dj.Tasks["dev"]; ok {
+                return "deno task dev"
+            }
+        }
+    }
+    if ctx.App.HasMatch("deno.jsonc") {
+        if err := ctx.App.ReadJSON("deno.jsonc", &dj); err == nil {
+            if _, ok := dj.Tasks["dev"]; ok {
+                return "deno task dev"
+            }
+        }
+    }
+    return ""
 }
 
 func (p *DenoProvider) Build(ctx *generate.GenerateContext, build *generate.CommandStepBuilder) {

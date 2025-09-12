@@ -92,3 +92,115 @@ func TestGenerateConfigFromFile_Malformed(t *testing.T) {
 	require.Error(t, genErr, "expected an error for malformed JSON config file")
 	require.Nil(t, cfg, "config should be nil on error")
 }
+
+func TestDevMode_NodeNext_UsesDevStart(t *testing.T) {
+    wd, err := os.Getwd()
+    require.NoError(t, err)
+    examplePath := filepath.Join(filepath.Dir(wd), "examples", "node-next")
+
+    userApp, err := app.NewApp(examplePath)
+    require.NoError(t, err)
+
+    env := app.NewEnvironment(nil)
+    buildResult := GenerateBuildPlan(userApp, env, &GenerateBuildPlanOptions{Dev: true})
+    require.True(t, buildResult.Success)
+
+    require.Equal(t, "npm run dev", buildResult.Plan.Deploy.StartCmd)
+}
+
+func TestDevMode_SPA_Vite_UsesDevScript_NoCaddy(t *testing.T) {
+    wd, err := os.Getwd()
+    require.NoError(t, err)
+    examplePath := filepath.Join(filepath.Dir(wd), "examples", "node-vite-vanilla")
+
+    userApp, err := app.NewApp(examplePath)
+    require.NoError(t, err)
+
+    env := app.NewEnvironment(nil)
+    buildResult := GenerateBuildPlan(userApp, env, &GenerateBuildPlanOptions{Dev: true})
+    require.True(t, buildResult.Success)
+
+    // start command should use dev
+    require.Contains(t, buildResult.Plan.Deploy.StartCmd, "dev")
+
+    // ensure no caddy step present
+    for _, step := range buildResult.Plan.Steps {
+        require.NotEqual(t, "caddy", step.Name)
+    }
+}
+
+func TestDevMode_Python_Django_UsesRunserver(t *testing.T) {
+    wd, err := os.Getwd()
+    require.NoError(t, err)
+    examplePath := filepath.Join(filepath.Dir(wd), "examples", "python-django")
+
+    userApp, err := app.NewApp(examplePath)
+    require.NoError(t, err)
+
+    env := app.NewEnvironment(nil)
+    buildResult := GenerateBuildPlan(userApp, env, &GenerateBuildPlanOptions{Dev: true})
+    require.True(t, buildResult.Success)
+
+    require.Contains(t, buildResult.Plan.Deploy.StartCmd, "manage.py runserver")
+}
+
+func TestDevMode_Deno_UsesTaskDev(t *testing.T) {
+    wd, err := os.Getwd()
+    require.NoError(t, err)
+    examplePath := filepath.Join(filepath.Dir(wd), "examples", "deno-2")
+
+    userApp, err := app.NewApp(examplePath)
+    require.NoError(t, err)
+
+    env := app.NewEnvironment(nil)
+    buildResult := GenerateBuildPlan(userApp, env, &GenerateBuildPlanOptions{Dev: true})
+    require.True(t, buildResult.Success)
+
+    require.Equal(t, "deno task dev", buildResult.Plan.Deploy.StartCmd)
+}
+
+func TestDevMode_Golang_GoRun(t *testing.T) {
+    wd, err := os.Getwd()
+    require.NoError(t, err)
+    examplePath := filepath.Join(filepath.Dir(wd), "examples", "go-mod")
+
+    userApp, err := app.NewApp(examplePath)
+    require.NoError(t, err)
+
+    env := app.NewEnvironment(nil)
+    buildResult := GenerateBuildPlan(userApp, env, &GenerateBuildPlanOptions{Dev: true})
+    require.True(t, buildResult.Success)
+
+    require.Contains(t, buildResult.Plan.Deploy.StartCmd, "go run")
+}
+
+func TestDevMode_Java_Gradle_Run(t *testing.T) {
+    wd, err := os.Getwd()
+    require.NoError(t, err)
+    examplePath := filepath.Join(filepath.Dir(wd), "examples", "java-gradle")
+
+    userApp, err := app.NewApp(examplePath)
+    require.NoError(t, err)
+
+    env := app.NewEnvironment(nil)
+    buildResult := GenerateBuildPlan(userApp, env, &GenerateBuildPlanOptions{Dev: true})
+    require.True(t, buildResult.Success)
+
+    require.Contains(t, buildResult.Plan.Deploy.StartCmd, "gradle")
+    require.Contains(t, buildResult.Plan.Deploy.StartCmd, "run")
+}
+
+func TestDevMode_PHP_Laravel_Serve(t *testing.T) {
+    wd, err := os.Getwd()
+    require.NoError(t, err)
+    examplePath := filepath.Join(filepath.Dir(wd), "examples", "php-laravel-12-react")
+
+    userApp, err := app.NewApp(examplePath)
+    require.NoError(t, err)
+
+    env := app.NewEnvironment(nil)
+    buildResult := GenerateBuildPlan(userApp, env, &GenerateBuildPlanOptions{Dev: true})
+    require.True(t, buildResult.Success)
+
+    require.Contains(t, buildResult.Plan.Deploy.StartCmd, "php artisan serve")
+}

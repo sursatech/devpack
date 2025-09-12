@@ -46,6 +46,9 @@ type GenerateContext struct {
 	MiseStepBuilder *MiseStepBuilder
 
 	Logger *logger.Logger
+
+	// Dev indicates the plan is being generated in development mode
+	Dev bool
 }
 
 type Command interface {

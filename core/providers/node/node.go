@@ -99,8 +99,15 @@ func (p *NodeProvider) Plan(ctx *generate.GenerateContext) error {
 	ctx.Deploy.StartCmd = p.GetStartCommand(ctx)
 	maps.Copy(ctx.Deploy.Variables, p.GetNodeEnvVars(ctx))
 
-	// Custom deploy for SPA's
-	if isSPA {
+	// If dev mode is enabled, prefer a dev start command when available
+	if ctx.Dev {
+		if devCmd := p.GetDevStartCommand(ctx); devCmd != "" {
+			ctx.Deploy.StartCmd = devCmd
+		}
+	}
+
+	// Custom deploy for SPA's (production only). In dev, run the dev server instead.
+	if isSPA && !ctx.Dev {
 		err := p.DeploySPA(ctx, build)
 		return err
 	}
@@ -168,6 +175,13 @@ func (p *NodeProvider) GetStartCommand(ctx *generate.GenerateContext) string {
 	}
 
 	return ""
+}
+
+func (p *NodeProvider) GetDevStartCommand(ctx *generate.GenerateContext) string {
+    if dev := p.getScripts(p.packageJson, "dev"); dev != "" {
+        return p.packageManager.RunCmd("dev")
+    }
+    return ""
 }
 
 func (p *NodeProvider) Build(ctx *generate.GenerateContext, build *generate.CommandStepBuilder) {

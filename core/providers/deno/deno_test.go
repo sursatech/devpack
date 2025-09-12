@@ -56,3 +56,21 @@ func TestDeno(t *testing.T) {
 		})
 	}
 }
+
+func TestDeno_Dev_UsesTaskDev(t *testing.T) {
+    ctx := testingUtils.CreateGenerateContext(t, "../../../examples/deno-2")
+    ctx.Dev = true
+
+    provider := DenoProvider{}
+    detected, err := provider.Detect(ctx)
+    require.NoError(t, err)
+    require.True(t, detected)
+
+    err = provider.Initialize(ctx)
+    require.NoError(t, err)
+
+    err = provider.Plan(ctx)
+    require.NoError(t, err)
+
+    require.Equal(t, "deno task dev", ctx.Deploy.StartCmd)
+}

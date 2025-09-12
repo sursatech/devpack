@@ -32,6 +32,7 @@ type GenerateBuildPlanOptions struct {
 	PreviousVersions         map[string]string
 	ConfigFilePath           string
 	ErrorMissingStartCommand bool
+    Dev                      bool
 }
 
 type BuildResult struct {
@@ -79,6 +80,9 @@ func GenerateBuildPlan(app *app.App, env *app.Environment, options *GenerateBuil
 		logger.LogError("%s", err.Error())
 		return &BuildResult{Success: false, Logs: logger.Logs}
 	}
+
+	// Propagate dev mode to the generation context so providers can branch on it
+	ctx.Dev = options.Dev
 
 	// Set the previous versions
 	if options.PreviousVersions != nil {
@@ -251,6 +255,13 @@ func GenerateConfigFromOptions(options *GenerateBuildPlanOptions) *c.Config {
 
 	if options.StartCommand != "" {
 		config.Deploy.StartCmd = options.StartCommand
+	}
+
+	if options.Dev {
+		if config.Deploy.Variables == nil {
+			config.Deploy.Variables = map[string]string{}
+		}
+		config.Deploy.Variables["NODE_ENV"] = "development"
 	}
 
 	return config

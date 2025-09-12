@@ -96,6 +96,12 @@ func (p *PhpProvider) Plan(ctx *generate.GenerateContext) error {
 
 	ctx.Deploy.StartCmd = "/start-container.sh"
 
+	if ctx.Dev {
+		if dev := p.getDevStartCmd(ctx); dev != "" {
+			ctx.Deploy.StartCmd = dev
+		}
+	}
+
 	return nil
 }
 
@@ -457,4 +463,14 @@ func (p *PhpProvider) readComposerJson(ctx *generate.GenerateContext) (map[strin
 
 func (p *PhpProvider) StartCommandHelp() string {
 	return ""
+}
+
+func (p *PhpProvider) getDevStartCmd(ctx *generate.GenerateContext) string {
+    if p.usesLaravel(ctx) {
+        return "php artisan serve --host 0.0.0.0 --port ${PORT:-8000}"
+    }
+    if ctx.App.HasMatch("public/index.php") || ctx.App.HasMatch("public") {
+        return "php -S 0.0.0.0:${PORT:-8000} -t public"
+    }
+    return "php -S 0.0.0.0:${PORT:-8000} -t /app"
 }

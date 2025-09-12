@@ -43,6 +43,11 @@ func (p *GoProvider) Plan(ctx *generate.GenerateContext) error {
 	p.Build(ctx, build)
 
 	ctx.Deploy.StartCmd = fmt.Sprintf("./%s", GO_BINARY_NAME)
+	if ctx.Dev {
+		if dev := p.getDevStartCmd(ctx); dev != "" {
+			ctx.Deploy.StartCmd = dev
+		}
+	}
 
 	runtimePkgs := []string{"tzdata"}
 	if p.hasCGOEnabled(ctx) {
@@ -180,6 +185,38 @@ func (p *GoProvider) InstallGoPackages(ctx *generate.GenerateContext, miseStep *
 	if envVersion, varName := ctx.Env.GetConfigVariable("GO_VERSION"); envVersion != "" {
 		miseStep.Version(goPkg, envVersion, varName)
 	}
+}
+
+func (p *GoProvider) getDevStartCmd(ctx *generate.GenerateContext) string {
+    // Prefer go run using similar selection logic as Build
+    if modulePath, _ := ctx.Env.GetConfigVariable("GO_WORKSPACE_MODULE"); modulePath != "" {
+        return fmt.Sprintf("go run ./%s", modulePath)
+    }
+    if binName, _ := ctx.Env.GetConfigVariable("GO_BIN"); binName != "" {
+        return fmt.Sprintf("go run ./cmd/%s", binName)
+    }
+    if p.isGoMod(ctx) && p.hasRootGoFiles(ctx) {
+        return "go run ."
+    }
+    if dirs, err := ctx.App.FindDirectories("cmd/*"); err == nil && len(dirs) > 0 {
+        cmdName := filepath.Base(dirs[0])
+        return fmt.Sprintf("go run ./cmd/%s", cmdName)
+    }
+    if p.isGoMod(ctx) {
+        return "go run ."
+    }
+    if p.isGoWorkspace(ctx) {
+        pkgs := p.GoWorkspacePackages(ctx)
+        for _, pkg := range pkgs {
+            if ctx.App.HasMatch(filepath.Join(pkg, "main.go")) {
+                return fmt.Sprintf("go run ./%s", pkg)
+            }
+        }
+    }
+    if ctx.App.HasMatch("main.go") {
+        return "go run main.go"
+    }
+    return ""
 }
 
 func (p *GoProvider) GetBuilder(ctx *generate.GenerateContext) *generate.MiseStepBuilder {

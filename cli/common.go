@@ -17,6 +17,10 @@ var Version string // This will be set by main
 
 func commonPlanFlags() []cli.Flag {
 	return []cli.Flag{
+		&cli.BoolFlag{
+			Name:  "dev",
+			Usage: "generate development config (commands/env for local run)",
+		},
 		&cli.StringSliceFlag{
 			Name:    "env",
 			Aliases: []string{"e"},
@@ -81,6 +85,7 @@ func GenerateBuildResultForCommand(cmd *cli.Command) (*core.BuildResult, *a.App,
 		PreviousVersions:         previousVersions,
 		ConfigFilePath:           cmd.String("config-file"),
 		ErrorMissingStartCommand: cmd.Bool("error-missing-start"),
+		Dev:                      cmd.Bool("dev"),
 	}
 
 	buildResult := core.GenerateBuildPlan(app, env, generateOptions)

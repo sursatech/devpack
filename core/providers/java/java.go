@@ -73,6 +73,12 @@ func (p *JavaProvider) Plan(ctx *generate.GenerateContext) error {
 
 	ctx.Deploy.StartCmd = p.getStartCmd(ctx)
 
+	if ctx.Dev {
+		if dev := p.getDevStartCmd(ctx); dev != "" {
+			ctx.Deploy.StartCmd = dev
+		}
+	}
+
 	p.addMetadata(ctx)
 
 	return nil
@@ -88,6 +94,23 @@ func (p *JavaProvider) getStartCmd(ctx *generate.GenerateContext) string {
 		return "java $JAVA_OPTS -jar target/*jar"
 	}
 
+}
+
+func (p *JavaProvider) getDevStartCmd(ctx *generate.GenerateContext) string {
+    if p.usesGradle(ctx) {
+        if ctx.App.HasMatch("gradlew") {
+            return "./gradlew run"
+        }
+        return "gradle run"
+    }
+    if ctx.App.HasMatch("pom.xml") {
+        if p.usesSpringBoot(ctx) {
+            return "mvn spring-boot:run"
+        }
+        // Fallback: leave empty to keep prod jar run
+        return ""
+    }
+    return ""
 }
 
 func (p *JavaProvider) addMetadata(ctx *generate.GenerateContext) {
