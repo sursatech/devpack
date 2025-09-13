@@ -14,6 +14,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       DOCKER_CLI_EXPERIMENTAL: "enabled"
+
       FRONTEND_IMAGE: "ghcr.io/sursatech/devpack-frontend"
     steps:
       - name: Checkout
