@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 
 # Repository configuration
-REPO_OWNER="railwayapp"
-REPO_NAME="railpack"
+REPO_OWNER="sursatech"
+REPO_NAME="devpack"
 REPO_URL="https://github.com/${REPO_OWNER}/${REPO_NAME}"
 
 help_text="Options
