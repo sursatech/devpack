@@ -80,6 +80,43 @@ func (p PackageManager) installDependencies(ctx *generate.GenerateContext, works
 	p.installDeps(ctx, install)
 }
 
+// installDependenciesDev installs dependencies in a dev-friendly way (avoids strict/frozen installs like `npm ci`)
+func (p PackageManager) installDependenciesDev(ctx *generate.GenerateContext, workspace *Workspace, install *generate.CommandStepBuilder) {
+	packageJsons := workspace.AllPackageJson()
+
+	hasPreInstall := false
+	hasPostInstall := false
+	hasPrepare := false
+	usesLocalFile := false
+
+	for _, packageJson := range packageJsons {
+		hasPreInstall = hasPreInstall || (packageJson.Scripts != nil && packageJson.Scripts["preinstall"] != "")
+		hasPostInstall = hasPostInstall || (packageJson.Scripts != nil && packageJson.Scripts["postinstall"] != "")
+		hasPrepare = hasPrepare || (packageJson.Scripts != nil && packageJson.Scripts["prepare"] != "")
+		usesLocalFile = usesLocalFile || p.usesLocalFile(ctx)
+	}
+
+	// If there are any pre/post install scripts, we need the entire app to be copied
+	// This is to handle things like patch-package
+	if hasPreInstall || hasPostInstall || hasPrepare || usesLocalFile {
+		install.AddCommands([]plan.Command{
+			plan.NewCopyCommand(".", "."),
+		})
+
+		// Use all secrets for the install step if there are any pre/post install scripts
+		install.UseSecrets([]string{"*"})
+	} else {
+		for _, file := range p.SupportingInstallFiles(ctx) {
+			install.AddCommands([]plan.Command{
+				plan.NewCopyCommand(file, file),
+			})
+		}
+	}
+
+	// Use dev-friendly install commands
+	p.installDepsDev(ctx, install)
+}
+
 // GetCache returns the cache for the package manager
 func (p PackageManager) GetInstallCache(ctx *generate.GenerateContext) string {
 	switch p {
@@ -122,6 +159,24 @@ func (p PackageManager) installDeps(ctx *generate.GenerateContext, install *gene
 		install.AddCommand(plan.NewExecCommand("yarn install --frozen-lockfile"))
 	case PackageManagerYarnBerry:
 		install.AddCommand(plan.NewExecCommand("yarn install --check-cache"))
+	}
+}
+
+// installDepsDev uses non-frozen, non-CI install commands suitable for development
+func (p PackageManager) installDepsDev(ctx *generate.GenerateContext, install *generate.CommandStepBuilder) {
+	install.AddCache(p.GetInstallCache(ctx))
+
+	switch p {
+	case PackageManagerNpm:
+		install.AddCommand(plan.NewExecCommand("npm install"))
+	case PackageManagerPnpm:
+		install.AddCommand(plan.NewExecCommand("pnpm install"))
+	case PackageManagerBun:
+		install.AddCommand(plan.NewExecCommand("bun install"))
+	case PackageManagerYarn1:
+		install.AddCommand(plan.NewExecCommand("yarn install"))
+	case PackageManagerYarnBerry:
+		install.AddCommand(plan.NewExecCommand("yarn install"))
 	}
 }
 

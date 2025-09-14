@@ -80,7 +80,11 @@ func (p *NodeProvider) Plan(ctx *generate.GenerateContext) error {
 	// Install
 	install := ctx.NewCommandStep("install")
 	install.AddInput(plan.NewStepLayer(miseStep.Name()))
-	p.InstallNodeDeps(ctx, install)
+	if ctx.Dev {
+		p.InstallNodeDepsDev(ctx, install)
+	} else {
+		p.InstallNodeDeps(ctx, install)
+	}
 
 	// Prune
 	prune := ctx.NewCommandStep("prune")
@@ -178,10 +182,10 @@ func (p *NodeProvider) GetStartCommand(ctx *generate.GenerateContext) string {
 }
 
 func (p *NodeProvider) GetDevStartCommand(ctx *generate.GenerateContext) string {
-    if dev := p.getScripts(p.packageJson, "dev"); dev != "" {
-        return p.packageManager.RunCmd("dev")
-    }
-    return ""
+	if dev := p.getScripts(p.packageJson, "dev"); dev != "" {
+		return p.packageManager.RunCmd("dev")
+	}
+	return ""
 }
 
 func (p *NodeProvider) Build(ctx *generate.GenerateContext, build *generate.CommandStepBuilder) {
@@ -287,6 +291,39 @@ func (p *NodeProvider) InstallNodeDeps(ctx *generate.GenerateContext, install *g
 	p.packageManager.installDependencies(ctx, p.workspace, install)
 }
 
+func (p *NodeProvider) InstallNodeDepsDev(ctx *generate.GenerateContext, install *generate.CommandStepBuilder) {
+	maps.Copy(install.Variables, p.GetNodeEnvVars(ctx))
+	install.Secrets = []string{}
+	install.UseSecretsWithPrefixes([]string{"NODE", "NPM", "BUN", "PNPM", "YARN", "CI"})
+	install.AddPaths([]string{"/app/node_modules/.bin"})
+
+	if ctx.App.HasMatch("node_modules") {
+		ctx.Logger.LogWarn("node_modules directory found in project root, this is likely a mistake")
+		ctx.Logger.LogWarn("It is recommended to add node_modules to the .gitignore file")
+	}
+
+	if p.usesCorepack() {
+		pmName, pmVersion := p.packageJson.GetPackageManagerInfo()
+		install.AddVariables(map[string]string{
+			"COREPACK_HOME": COREPACK_HOME,
+		})
+		ctx.Logger.LogInfo("Installing %s@%s with Corepack", pmName, pmVersion)
+
+		install.AddCommands([]plan.Command{
+			plan.NewCopyCommand("package.json"),
+			plan.NewExecShellCommand("npm i -g corepack@latest && corepack enable && corepack prepare --activate"),
+		})
+	}
+	install.AddCommands([]plan.Command{
+		// it's possible for a package.json to exist without any dependencies, in which case node_modules is not generated
+		// and bun.lockb, etc are not generated either. However, this path is used to compute the cache key, so we ensure
+		// it exists on the filesystem to avoid a docker cache key computation error.
+		plan.NewExecCommand(fmt.Sprintf("mkdir -p %s", NODE_MODULES_CACHE)),
+	})
+
+	p.packageManager.installDependenciesDev(ctx, p.workspace, install)
+}
+
 func (p *NodeProvider) InstallMisePackages(ctx *generate.GenerateContext, miseStep *generate.MiseStepBuilder) {
 	requiresNode := p.requiresNode(ctx)
 
@@ -349,6 +386,11 @@ func (p *NodeProvider) GetNodeEnvVars(ctx *generate.GenerateContext) map[string]
 		"NPM_CONFIG_UPDATE_NOTIFIER": "false",
 		"NPM_CONFIG_FUND":            "false",
 		"CI":                         "true",
+	}
+
+	if ctx.Dev {
+		envVars["NODE_ENV"] = "development"
+		envVars["CI"] = "false"
 	}
 
 	if p.packageManager == PackageManagerYarn1 {

@@ -32,7 +32,7 @@ type GenerateBuildPlanOptions struct {
 	PreviousVersions         map[string]string
 	ConfigFilePath           string
 	ErrorMissingStartCommand bool
-    Dev                      bool
+	Dev                      bool
 }
 
 type BuildResult struct {
@@ -255,13 +255,6 @@ func GenerateConfigFromOptions(options *GenerateBuildPlanOptions) *c.Config {
 
 	if options.StartCommand != "" {
 		config.Deploy.StartCmd = options.StartCommand
-	}
-
-	if options.Dev {
-		if config.Deploy.Variables == nil {
-			config.Deploy.Variables = map[string]string{}
-		}
-		config.Deploy.Variables["NODE_ENV"] = "development"
 	}
 
 	return config
