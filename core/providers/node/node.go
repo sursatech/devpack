@@ -108,7 +108,7 @@ func (p *NodeProvider) Plan(ctx *generate.GenerateContext) error {
 		if devCmd := p.GetDevStartCommand(ctx); devCmd != "" {
 			ctx.Deploy.StartCmd = devCmd
 			// Determine chosen dev script name and script contents
-			if scriptName, scriptVal := p.getPreferredDevScriptName(); scriptName != "" {
+			if scriptName, scriptVal := p.getPreferredDevScriptName(ctx); scriptName != "" {
 				if hostFlag := p.getHostBindingFlag(ctx, scriptVal); hostFlag != "" {
 					if p.hasExistingHostBinding(scriptVal) {
 						// Already bound; still expose a complete command without extra flags
@@ -209,7 +209,13 @@ func (p *NodeProvider) GetStartCommand(ctx *generate.GenerateContext) string {
 }
 
 func (p *NodeProvider) GetDevStartCommand(ctx *generate.GenerateContext) string {
-	if scriptName, _ := p.getPreferredDevScriptName(); scriptName != "" {
+	if p.isAngular(ctx) {
+		scriptName := p.getRunBase("start")
+		if scriptName != "" {
+			return scriptName
+		}
+	}
+	if scriptName, _ := p.getPreferredDevScriptName(ctx); scriptName != "" {
 		return p.getRunBase(scriptName)
 	}
 	return ""
@@ -262,17 +268,22 @@ func (p *NodeProvider) getHostBindingFlag(ctx *generate.GenerateContext, devScri
 
 // getPreferredDevScriptName returns the best-matching dev script name and its command
 // by checking common dev aliases in priority order.
-func (p *NodeProvider) getPreferredDevScriptName() (string, string) {
+func (p *NodeProvider) getPreferredDevScriptName(ctx *generate.GenerateContext) (string, string) {
 	if p.packageJson == nil || p.packageJson.Scripts == nil {
 		return "", ""
 	}
-
+	if p.isAngular(ctx) {
+		scriptName := p.getRunBase("start")
+		if scriptName != "" {
+			return "start", scriptName
+		}
+	}
 	// Priority list of common dev scripts
 	candidates := []string{
 		"dev",
 		"start:dev",
-		"watch",
 		"serve",
+		"watch",
 		"dev:server",
 		"dev:serve",
 		"start:watch",
