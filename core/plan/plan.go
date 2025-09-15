@@ -22,6 +22,9 @@ type Deploy struct {
 	// The command to run in the container
 	StartCmd string `json:"startCommand,omitempty"`
 
+	// Optional full host-binding command to run on the host (e.g. "npm start -- --host")
+	StartCmdHost string `json:"startCommandHost,omitempty"`
+
 	// The variables available to this step. The key is the name of the variable that is referenced in a variable command
 	Variables map[string]string `json:"variables,omitempty"`
 

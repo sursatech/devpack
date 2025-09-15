@@ -94,113 +94,135 @@ func TestGenerateConfigFromFile_Malformed(t *testing.T) {
 }
 
 func TestDevMode_NodeNext_UsesDevStart(t *testing.T) {
-    wd, err := os.Getwd()
-    require.NoError(t, err)
-    examplePath := filepath.Join(filepath.Dir(wd), "examples", "node-next")
+	wd, err := os.Getwd()
+	require.NoError(t, err)
+	examplePath := filepath.Join(filepath.Dir(wd), "examples", "node-next")
 
-    userApp, err := app.NewApp(examplePath)
-    require.NoError(t, err)
+	userApp, err := app.NewApp(examplePath)
+	require.NoError(t, err)
 
-    env := app.NewEnvironment(nil)
-    buildResult := GenerateBuildPlan(userApp, env, &GenerateBuildPlanOptions{Dev: true})
-    require.True(t, buildResult.Success)
+	env := app.NewEnvironment(nil)
+	buildResult := GenerateBuildPlan(userApp, env, &GenerateBuildPlanOptions{Dev: true})
+	require.True(t, buildResult.Success)
 
-    require.Equal(t, "npm run dev", buildResult.Plan.Deploy.StartCmd)
+	require.Equal(t, "npm run dev", buildResult.Plan.Deploy.StartCmd)
+	// Next.js should expose full host-binding command via deploy.startCommandHost
+	require.Equal(t, "npm run dev -- -H 0.0.0.0", buildResult.Plan.Deploy.StartCmdHost)
 }
 
 func TestDevMode_SPA_Vite_UsesDevScript_NoCaddy(t *testing.T) {
-    wd, err := os.Getwd()
-    require.NoError(t, err)
-    examplePath := filepath.Join(filepath.Dir(wd), "examples", "node-vite-vanilla")
+	wd, err := os.Getwd()
+	require.NoError(t, err)
+	examplePath := filepath.Join(filepath.Dir(wd), "examples", "node-vite-vanilla")
 
-    userApp, err := app.NewApp(examplePath)
-    require.NoError(t, err)
+	userApp, err := app.NewApp(examplePath)
+	require.NoError(t, err)
 
-    env := app.NewEnvironment(nil)
-    buildResult := GenerateBuildPlan(userApp, env, &GenerateBuildPlanOptions{Dev: true})
-    require.True(t, buildResult.Success)
+	env := app.NewEnvironment(nil)
+	buildResult := GenerateBuildPlan(userApp, env, &GenerateBuildPlanOptions{Dev: true})
+	require.True(t, buildResult.Success)
 
-    // start command should use dev
-    require.Contains(t, buildResult.Plan.Deploy.StartCmd, "dev")
+	// start command should use dev
+	require.Contains(t, buildResult.Plan.Deploy.StartCmd, "dev")
 
-    // ensure no caddy step present
-    for _, step := range buildResult.Plan.Steps {
-        require.NotEqual(t, "caddy", step.Name)
-    }
+	// Vite should expose full host-binding command via deploy.startCommandHost
+	require.Equal(t, "npm run dev -- --host", buildResult.Plan.Deploy.StartCmdHost)
+
+	// ensure no caddy step present
+	for _, step := range buildResult.Plan.Steps {
+		require.NotEqual(t, "caddy", step.Name)
+	}
+}
+
+func TestDevMode_NodeAngular_UsesStart_WithHost(t *testing.T) {
+	wd, err := os.Getwd()
+	require.NoError(t, err)
+	examplePath := filepath.Join(filepath.Dir(wd), "examples", "node-angular")
+
+	userApp, err := app.NewApp(examplePath)
+	require.NoError(t, err)
+
+	env := app.NewEnvironment(nil)
+	buildResult := GenerateBuildPlan(userApp, env, &GenerateBuildPlanOptions{Dev: true})
+	require.True(t, buildResult.Success)
+
+	// Angular example uses start script for dev
+	require.Equal(t, "npm run start", buildResult.Plan.Deploy.StartCmd)
+	require.Equal(t, "npm start -- --host 0.0.0.0", buildResult.Plan.Deploy.StartCmdHost)
 }
 
 func TestDevMode_Python_Django_UsesRunserver(t *testing.T) {
-    wd, err := os.Getwd()
-    require.NoError(t, err)
-    examplePath := filepath.Join(filepath.Dir(wd), "examples", "python-django")
+	wd, err := os.Getwd()
+	require.NoError(t, err)
+	examplePath := filepath.Join(filepath.Dir(wd), "examples", "python-django")
 
-    userApp, err := app.NewApp(examplePath)
-    require.NoError(t, err)
+	userApp, err := app.NewApp(examplePath)
+	require.NoError(t, err)
 
-    env := app.NewEnvironment(nil)
-    buildResult := GenerateBuildPlan(userApp, env, &GenerateBuildPlanOptions{Dev: true})
-    require.True(t, buildResult.Success)
+	env := app.NewEnvironment(nil)
+	buildResult := GenerateBuildPlan(userApp, env, &GenerateBuildPlanOptions{Dev: true})
+	require.True(t, buildResult.Success)
 
-    require.Contains(t, buildResult.Plan.Deploy.StartCmd, "manage.py runserver")
+	require.Contains(t, buildResult.Plan.Deploy.StartCmd, "manage.py runserver")
 }
 
 func TestDevMode_Deno_UsesTaskDev(t *testing.T) {
-    wd, err := os.Getwd()
-    require.NoError(t, err)
-    examplePath := filepath.Join(filepath.Dir(wd), "examples", "deno-2")
+	wd, err := os.Getwd()
+	require.NoError(t, err)
+	examplePath := filepath.Join(filepath.Dir(wd), "examples", "deno-2")
 
-    userApp, err := app.NewApp(examplePath)
-    require.NoError(t, err)
+	userApp, err := app.NewApp(examplePath)
+	require.NoError(t, err)
 
-    env := app.NewEnvironment(nil)
-    buildResult := GenerateBuildPlan(userApp, env, &GenerateBuildPlanOptions{Dev: true})
-    require.True(t, buildResult.Success)
+	env := app.NewEnvironment(nil)
+	buildResult := GenerateBuildPlan(userApp, env, &GenerateBuildPlanOptions{Dev: true})
+	require.True(t, buildResult.Success)
 
-    require.Equal(t, "deno task dev", buildResult.Plan.Deploy.StartCmd)
+	require.Equal(t, "deno task dev", buildResult.Plan.Deploy.StartCmd)
 }
 
 func TestDevMode_Golang_GoRun(t *testing.T) {
-    wd, err := os.Getwd()
-    require.NoError(t, err)
-    examplePath := filepath.Join(filepath.Dir(wd), "examples", "go-mod")
+	wd, err := os.Getwd()
+	require.NoError(t, err)
+	examplePath := filepath.Join(filepath.Dir(wd), "examples", "go-mod")
 
-    userApp, err := app.NewApp(examplePath)
-    require.NoError(t, err)
+	userApp, err := app.NewApp(examplePath)
+	require.NoError(t, err)
 
-    env := app.NewEnvironment(nil)
-    buildResult := GenerateBuildPlan(userApp, env, &GenerateBuildPlanOptions{Dev: true})
-    require.True(t, buildResult.Success)
+	env := app.NewEnvironment(nil)
+	buildResult := GenerateBuildPlan(userApp, env, &GenerateBuildPlanOptions{Dev: true})
+	require.True(t, buildResult.Success)
 
-    require.Contains(t, buildResult.Plan.Deploy.StartCmd, "go run")
+	require.Contains(t, buildResult.Plan.Deploy.StartCmd, "go run")
 }
 
 func TestDevMode_Java_Gradle_Run(t *testing.T) {
-    wd, err := os.Getwd()
-    require.NoError(t, err)
-    examplePath := filepath.Join(filepath.Dir(wd), "examples", "java-gradle")
+	wd, err := os.Getwd()
+	require.NoError(t, err)
+	examplePath := filepath.Join(filepath.Dir(wd), "examples", "java-gradle")
 
-    userApp, err := app.NewApp(examplePath)
-    require.NoError(t, err)
+	userApp, err := app.NewApp(examplePath)
+	require.NoError(t, err)
 
-    env := app.NewEnvironment(nil)
-    buildResult := GenerateBuildPlan(userApp, env, &GenerateBuildPlanOptions{Dev: true})
-    require.True(t, buildResult.Success)
+	env := app.NewEnvironment(nil)
+	buildResult := GenerateBuildPlan(userApp, env, &GenerateBuildPlanOptions{Dev: true})
+	require.True(t, buildResult.Success)
 
-    require.Contains(t, buildResult.Plan.Deploy.StartCmd, "gradle")
-    require.Contains(t, buildResult.Plan.Deploy.StartCmd, "run")
+	require.Contains(t, buildResult.Plan.Deploy.StartCmd, "gradle")
+	require.Contains(t, buildResult.Plan.Deploy.StartCmd, "run")
 }
 
 func TestDevMode_PHP_Laravel_Serve(t *testing.T) {
-    wd, err := os.Getwd()
-    require.NoError(t, err)
-    examplePath := filepath.Join(filepath.Dir(wd), "examples", "php-laravel-12-react")
+	wd, err := os.Getwd()
+	require.NoError(t, err)
+	examplePath := filepath.Join(filepath.Dir(wd), "examples", "php-laravel-12-react")
 
-    userApp, err := app.NewApp(examplePath)
-    require.NoError(t, err)
+	userApp, err := app.NewApp(examplePath)
+	require.NoError(t, err)
 
-    env := app.NewEnvironment(nil)
-    buildResult := GenerateBuildPlan(userApp, env, &GenerateBuildPlanOptions{Dev: true})
-    require.True(t, buildResult.Success)
+	env := app.NewEnvironment(nil)
+	buildResult := GenerateBuildPlan(userApp, env, &GenerateBuildPlanOptions{Dev: true})
+	require.True(t, buildResult.Success)
 
-    require.Contains(t, buildResult.Plan.Deploy.StartCmd, "php artisan serve")
+	require.Contains(t, buildResult.Plan.Deploy.StartCmd, "php artisan serve")
 }

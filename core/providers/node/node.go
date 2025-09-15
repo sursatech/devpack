@@ -107,6 +107,33 @@ func (p *NodeProvider) Plan(ctx *generate.GenerateContext) error {
 	if ctx.Dev {
 		if devCmd := p.GetDevStartCommand(ctx); devCmd != "" {
 			ctx.Deploy.StartCmd = devCmd
+			// Determine chosen dev script name and script contents
+			if scriptName, scriptVal := p.getPreferredDevScriptName(); scriptName != "" {
+				if hostFlag := p.getHostBindingFlag(ctx, scriptVal); hostFlag != "" {
+					if p.hasExistingHostBinding(scriptVal) {
+						// Already bound; still expose a complete command without extra flags
+						ctx.Deploy.StartCmdHost = p.getRunBase(scriptName)
+					} else {
+						ctx.Deploy.StartCmdHost = p.getHostRunCommand(ctx, scriptName, hostFlag)
+					}
+				} else {
+					// No special host flag; still provide a host command baseline
+					ctx.Deploy.StartCmdHost = p.getRunBase(scriptName)
+				}
+			}
+		} else {
+			// Some frameworks (e.g., Angular) use the start script for dev
+			if startScript := p.getScripts(p.packageJson, "start"); startScript != "" {
+				if hostFlag := p.getHostBindingFlag(ctx, startScript); hostFlag != "" {
+					if p.hasExistingHostBinding(startScript) {
+						ctx.Deploy.StartCmdHost = p.getRunBase("start")
+					} else {
+						ctx.Deploy.StartCmdHost = p.getHostRunCommand(ctx, "start", hostFlag)
+					}
+				} else {
+					ctx.Deploy.StartCmdHost = p.getRunBase("start")
+				}
+			}
 		}
 	}
 
@@ -182,10 +209,129 @@ func (p *NodeProvider) GetStartCommand(ctx *generate.GenerateContext) string {
 }
 
 func (p *NodeProvider) GetDevStartCommand(ctx *generate.GenerateContext) string {
-	if dev := p.getScripts(p.packageJson, "dev"); dev != "" {
-		return p.packageManager.RunCmd("dev")
+	if scriptName, _ := p.getPreferredDevScriptName(); scriptName != "" {
+		return p.getRunBase(scriptName)
 	}
 	return ""
+}
+
+// getDevStartArgsSuffix returns additional CLI args to append to the package manager
+// run command based on detected framework/tooling. This ensures local dev servers
+// bind to the container network interface and are reachable from the host.
+// getDevStartArgsSuffix deprecated: use ctx.Deploy.Host parameter instead
+
+// hasExistingHostBinding checks if the dev script already configures host binding
+// using common flags to avoid duplicating them.
+func (p *NodeProvider) hasExistingHostBinding(devScript string) bool {
+	lower := strings.ToLower(devScript)
+	if strings.Contains(lower, "--host") || strings.Contains(lower, "--hostname") {
+		return true
+	}
+	// Next.js uses -H
+	if strings.Contains(devScript, " -H ") || strings.HasSuffix(devScript, " -H") {
+		return true
+	}
+	return false
+}
+
+// getHostBindingFlag returns the appropriate host-binding CLI args for the detected framework/tool
+// so dev servers listen on 0.0.0.0 and are reachable from the host.
+func (p *NodeProvider) getHostBindingFlag(ctx *generate.GenerateContext, devScript string) string {
+	// Vite-based (Vite, Astro dev, React Router dev)
+	if p.isVite(ctx) || p.isAstro(ctx) || p.isReactRouter(ctx) {
+		return "--host"
+	}
+
+	// Angular
+	if p.isAngular(ctx) {
+		return "--host 0.0.0.0"
+	}
+
+	// Next.js
+	if p.isNext() {
+		return "-H 0.0.0.0"
+	}
+
+	// Nuxt
+	if p.isNuxt() {
+		return "--host 0.0.0.0"
+	}
+
+	return ""
+}
+
+// getPreferredDevScriptName returns the best-matching dev script name and its command
+// by checking common dev aliases in priority order.
+func (p *NodeProvider) getPreferredDevScriptName() (string, string) {
+	if p.packageJson == nil || p.packageJson.Scripts == nil {
+		return "", ""
+	}
+
+	// Priority list of common dev scripts
+	candidates := []string{
+		"dev",
+		"start:dev",
+		"watch",
+		"serve",
+		"dev:server",
+		"dev:serve",
+		"start:watch",
+	}
+
+	for _, name := range candidates {
+		if val, ok := p.packageJson.Scripts[name]; ok && strings.TrimSpace(val) != "" {
+			return name, val
+		}
+	}
+
+	return "", ""
+}
+
+// getHostRunCommand builds the full command string with host binding for the given script
+func (p *NodeProvider) getHostRunCommand(ctx *generate.GenerateContext, scriptName string, hostFlag string) string {
+	base := p.getRunBase(scriptName)
+	sep := p.getPMArgsSeparator()
+	if sep != "" {
+		return base + " " + sep + " " + hostFlag
+	}
+	return base + " " + hostFlag
+}
+
+// getRunBase returns the base run command per package manager for a script
+func (p *NodeProvider) getRunBase(scriptName string) string {
+	switch p.packageManager {
+	case PackageManagerNpm:
+		if scriptName == "start" {
+			return "npm start"
+		}
+		return "npm run " + scriptName
+	case PackageManagerYarn1, PackageManagerYarnBerry:
+		if scriptName == "start" || scriptName == "dev" {
+			return "yarn " + scriptName
+		}
+		return "yarn run " + scriptName
+	case PackageManagerPnpm:
+		if scriptName == "start" || scriptName == "dev" {
+			return "pnpm " + scriptName
+		}
+		return "pnpm run " + scriptName
+	case PackageManagerBun:
+		return "bun run " + scriptName
+	default:
+		return "npm run " + scriptName
+	}
+}
+
+// getPMArgsSeparator returns the proper separator needed by the active package manager
+// to pass arguments through to the underlying script.
+// npm/yarn require "--" between run and script args; others typically forward args directly.
+func (p *NodeProvider) getPMArgsSeparator() string {
+	switch p.packageManager {
+	case PackageManagerNpm, PackageManagerYarn1, PackageManagerYarnBerry:
+		return "--"
+	default:
+		return ""
+	}
 }
 
 func (p *NodeProvider) Build(ctx *generate.GenerateContext, build *generate.CommandStepBuilder) {

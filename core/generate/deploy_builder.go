@@ -8,6 +8,7 @@ type DeployBuilder struct {
 	Base         plan.Layer
 	DeployInputs []plan.Layer
 	StartCmd     string
+	StartCmdHost string
 	Variables    map[string]string
 	Paths        []string
 	AptPackages  []string
@@ -18,6 +19,7 @@ func NewDeployBuilder() *DeployBuilder {
 		Base:         plan.NewImageLayer(plan.RailpackRuntimeImage),
 		DeployInputs: []plan.Layer{},
 		StartCmd:     "",
+		StartCmdHost: "",
 		Variables:    map[string]string{},
 		Paths:        []string{},
 		AptPackages:  []string{},
@@ -55,6 +57,7 @@ func (b *DeployBuilder) Build(p *plan.BuildPlan, options *BuildStepOptions) {
 
 	p.Deploy.Inputs = append(p.Deploy.Inputs, b.DeployInputs...)
 	p.Deploy.StartCmd = b.StartCmd
+	p.Deploy.StartCmdHost = b.StartCmdHost
 	p.Deploy.Variables = b.Variables
 	p.Deploy.Paths = b.Paths
 }
