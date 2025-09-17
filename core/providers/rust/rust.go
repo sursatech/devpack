@@ -54,13 +54,28 @@ func (p *RustProvider) Plan(ctx *generate.GenerateContext) error {
 	p.Build(ctx, build)
 
 	maps.Copy(ctx.Deploy.Variables, p.GetRustEnvVars(ctx))
-	ctx.Deploy.AddInputs([]plan.Layer{
-		plan.NewStepLayer(build.Name(), plan.Filter{
-			Include: []string{"."},
-			Exclude: []string{"target"},
-		}),
-	})
+	
+	// In development mode, we don't need the build step output since we use cargo run
+	if ctx.Dev {
+		ctx.Deploy.AddInputs([]plan.Layer{
+			plan.NewStepLayer(miseStep.Name()),
+			plan.NewLocalLayer(),
+		})
+	} else {
+		ctx.Deploy.AddInputs([]plan.Layer{
+			plan.NewStepLayer(build.Name(), plan.Filter{
+				Include: []string{"."},
+				Exclude: []string{"target"},
+			}),
+		})
+	}
+	
 	ctx.Deploy.StartCmd = p.GetStartCommand(ctx)
+	
+	// Add StartCmdHost for development mode (same as StartCmd for Rust)
+	if ctx.Dev {
+		ctx.Deploy.StartCmdHost = p.GetStartCommand(ctx)
+	}
 
 	return nil
 }
@@ -68,10 +83,15 @@ func (p *RustProvider) Plan(ctx *generate.GenerateContext) error {
 func (p *RustProvider) StartCommandHelp() string {
 	return "To start your Rust application, Railpack will look for:\n\n" +
 		"1. A Cargo.toml file in your project root\n\n" +
-		"Your application will be compiled to a binary and started using `./bin/<binary>`"
+		"In production mode, your application will be compiled to a binary and started using `./bin/<binary>`\n" +
+		"In development mode, your application will be started using `cargo run` for faster iteration"
 }
 
 func (p *RustProvider) GetStartCommand(ctx *generate.GenerateContext) string {
+	if ctx.Dev {
+		return p.GetDevStartCommand(ctx)
+	}
+
 	target := p.getTarget(ctx)
 	workspace := p.resolveCargoWorkspace(ctx)
 
@@ -88,6 +108,12 @@ func (p *RustProvider) GetStartCommand(ctx *generate.GenerateContext) string {
 	}
 
 	return p.getStartBin(ctx)
+}
+
+func (p *RustProvider) GetDevStartCommand(ctx *generate.GenerateContext) string {
+	// In development mode, use cargo run for hot reloading
+	// This allows for faster iteration without pre-building binaries
+	return "cargo run"
 }
 
 func (p *RustProvider) getStartBin(ctx *generate.GenerateContext) string {
@@ -147,6 +173,9 @@ func (p *RustProvider) Install(ctx *generate.GenerateContext, install *generate.
 	})
 
 	buildCmd := "cargo build --release"
+	if ctx.Dev {
+		buildCmd = "cargo build" // Use debug build in development for faster compilation
+	}
 	dummyCmd := `echo "fn main() { }" > /app/src/main.rs && if grep -q "\[lib\]" Cargo.toml; then echo "fn main() { }" > /app/src/lib.rs; fi`
 	target := p.getTarget(ctx)
 	targetArg := ""
@@ -181,6 +210,9 @@ func (p *RustProvider) Build(ctx *generate.GenerateContext, build *generate.Comm
 	})
 
 	buildCmd := "cargo build --release"
+	if ctx.Dev {
+		buildCmd = "cargo build" // Use debug build in development for faster compilation
+	}
 	binSuffix := p.getBinSuffix(ctx)
 	target := p.getTarget(ctx)
 	targetArg := ""
@@ -287,9 +319,17 @@ func (p *RustProvider) getAppName(ctx *generate.GenerateContext) string {
 }
 
 func (p *RustProvider) GetRustEnvVars(ctx *generate.GenerateContext) map[string]string {
-	return map[string]string{
+	envVars := map[string]string{
 		"ROCKET_ADDRESS": "0.0.0.0", // Allows Rocket apps to accept non-local connections
 	}
+
+	if ctx.Dev {
+		envVars["RUST_LOG"] = "debug"
+		envVars["ROCKET_ENV"] = "development"
+		envVars["ROCKET_LOG_LEVEL"] = "debug"
+	}
+
+	return envVars
 }
 
 func (p *RustProvider) InstallMisePackages(ctx *generate.GenerateContext, miseStep *generate.MiseStepBuilder) {
@@ -344,6 +384,9 @@ func (p *RustProvider) InstallMisePackages(ctx *generate.GenerateContext, miseSt
 			miseStep.Version(rust, version, "rust-toolchain.toml")
 		}
 	}
+
+	// Install build tools needed for Rust native dependencies
+	miseStep.SupportingAptPackages = append(miseStep.SupportingAptPackages, "gcc", "g++", "libc6-dev", "build-essential")
 }
 
 var wasmRegex = regexp.MustCompile(`target\s*=\s*"wasm32-wasi"`)

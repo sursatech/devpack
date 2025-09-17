@@ -226,3 +226,25 @@ func TestDevMode_PHP_Laravel_Serve(t *testing.T) {
 
 	require.Contains(t, buildResult.Plan.Deploy.StartCmd, "php artisan serve")
 }
+
+func TestDevMode_Rust_UsesCargoRun(t *testing.T) {
+	wd, err := os.Getwd()
+	require.NoError(t, err)
+	examplePath := filepath.Join(filepath.Dir(wd), "examples", "rust-rocket")
+
+	userApp, err := app.NewApp(examplePath)
+	require.NoError(t, err)
+
+	env := app.NewEnvironment(nil)
+	buildResult := GenerateBuildPlan(userApp, env, &GenerateBuildPlanOptions{Dev: true})
+	require.True(t, buildResult.Success)
+
+	require.Equal(t, "cargo run", buildResult.Plan.Deploy.StartCmd)
+	require.Equal(t, "cargo run", buildResult.Plan.Deploy.StartCmdHost)
+	
+	// Check development environment variables
+	require.Equal(t, "0.0.0.0", buildResult.Plan.Deploy.Variables["ROCKET_ADDRESS"])
+	require.Equal(t, "development", buildResult.Plan.Deploy.Variables["ROCKET_ENV"])
+	require.Equal(t, "debug", buildResult.Plan.Deploy.Variables["ROCKET_LOG_LEVEL"])
+	require.Equal(t, "debug", buildResult.Plan.Deploy.Variables["RUST_LOG"])
+}
