@@ -113,7 +113,7 @@ func TestDevMode_NodeNext_UsesDevStart(t *testing.T) {
 func TestDevMode_SPA_Vite_UsesDevScript_NoCaddy(t *testing.T) {
 	wd, err := os.Getwd()
 	require.NoError(t, err)
-	examplePath := filepath.Join(filepath.Dir(wd), "examples", "node-vite-vanilla")
+	examplePath := filepath.Join(filepath.Dir(wd), "examples", "node-vite-react")
 
 	userApp, err := app.NewApp(examplePath)
 	require.NoError(t, err)
@@ -147,7 +147,7 @@ func TestDevMode_NodeAngular_UsesStart_WithHost(t *testing.T) {
 	require.True(t, buildResult.Success)
 
 	// Angular example uses start script for dev
-	require.Equal(t, "npm run start", buildResult.Plan.Deploy.StartCmd)
+	require.Equal(t, "npm start", buildResult.Plan.Deploy.StartCmd)
 	require.Equal(t, "npm start -- --host 0.0.0.0", buildResult.Plan.Deploy.StartCmdHost)
 }
 
