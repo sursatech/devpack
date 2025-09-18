@@ -25,6 +25,9 @@ type Deploy struct {
 	// Optional full host-binding command to run on the host (e.g. "npm start -- --host")
 	StartCmdHost string `json:"startCommandHost,omitempty"`
 
+	// The port(s) required by the application (e.g. 80, "3000,8080")
+	RequiredPort string `json:"requiredPort,omitempty"`
+
 	// The variables available to this step. The key is the name of the variable that is referenced in a variable command
 	Variables map[string]string `json:"variables,omitempty"`
 

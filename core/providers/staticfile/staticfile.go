@@ -53,31 +53,66 @@ func (p *StaticfileProvider) Detect(ctx *generate.GenerateContext) (bool, error)
 
 func (p *StaticfileProvider) Plan(ctx *generate.GenerateContext) error {
 	miseStep := ctx.GetMiseStepBuilder()
-	miseStep.Default("caddy", "latest")
+	
+	if ctx.Dev {
+		// Development mode: Use Node.js server
+		miseStep.Default("node", "22")
+		
+		// Add install step for lite-server
+		install := ctx.NewCommandStep("install")
+		install.AddInput(plan.NewStepLayer(miseStep.Name()))
+		install.AddInput(plan.NewLocalLayer())
+		install.AddCommands([]plan.Command{
+			plan.NewExecCommand("npm install -g lite-server"),
+		})
+		
+		ctx.Deploy.AddInputs([]plan.Layer{
+			miseStep.GetLayer(),
+			plan.NewStepLayer(install.Name()),
+			plan.NewLocalLayer(),
+		})
+		ctx.Deploy.StartCmd = p.GetDevStartCommand(ctx)
+		ctx.Deploy.StartCmdHost = p.GetDevStartCommand(ctx)
+		ctx.Deploy.RequiredPort = "3000" // Development mode: Static files should be served on port 3000 (lite-server default)
+	} else {
+		// Production mode: Use Caddy
+		miseStep.Default("caddy", "latest")
 
-	build := ctx.NewCommandStep("build")
-	build.AddInput(plan.NewStepLayer(miseStep.Name()))
-	build.AddInput(plan.NewLocalLayer())
+		build := ctx.NewCommandStep("build")
+		build.AddInput(plan.NewStepLayer(miseStep.Name()))
+		build.AddInput(plan.NewLocalLayer())
 
-	err := p.addCaddyfileToStep(ctx, build)
-	if err != nil {
-		return err
+		err := p.addCaddyfileToStep(ctx, build)
+		if err != nil {
+			return err
+		}
+
+		ctx.Deploy.AddInputs([]plan.Layer{
+			miseStep.GetLayer(),
+			plan.NewStepLayer(build.Name(), plan.Filter{
+				Include: []string{"."},
+			}),
+		})
+
+		ctx.Deploy.StartCmd = fmt.Sprintf("caddy run --config %s --adapter caddyfile 2>&1", CaddyfilePath)
 	}
-
-	ctx.Deploy.AddInputs([]plan.Layer{
-		miseStep.GetLayer(),
-		plan.NewStepLayer(build.Name(), plan.Filter{
-			Include: []string{"."},
-		}),
-	})
-
-	ctx.Deploy.StartCmd = fmt.Sprintf("caddy run --config %s --adapter caddyfile 2>&1", CaddyfilePath)
 
 	return nil
 }
 
+func (p *StaticfileProvider) GetDevStartCommand(ctx *generate.GenerateContext) string {
+	// Use Node.js lite-server for development
+	// Simple command: lite-server (uses default port 3000)
+	return "lite-server"
+}
+
 func (p *StaticfileProvider) StartCommandHelp() string {
-	return ""
+	return "To start your static file server, Railpack will look for:\n\n" +
+		"1. An index.html file in your project root\n" +
+		"2. A public directory with static files\n" +
+		"3. A Staticfile configuration file\n\n" +
+		"In production mode, your files will be served using Caddy\n" +
+		"In development mode, your files will be served using Node.js lite-server"
 }
 
 func (p *StaticfileProvider) addCaddyfileToStep(ctx *generate.GenerateContext, setup *generate.CommandStepBuilder) error {

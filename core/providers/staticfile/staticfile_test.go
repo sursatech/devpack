@@ -99,3 +99,71 @@ func TestGetRootDir(t *testing.T) {
 		})
 	}
 }
+
+func TestGetDevStartCommand(t *testing.T) {
+	tests := []struct {
+		name     string
+		rootDir  string
+		expected string
+	}{
+		{
+			name:     "root directory",
+			rootDir:  ".",
+			expected: "lite-server",
+		},
+		{
+			name:     "public directory",
+			rootDir:  "public",
+			expected: "lite-server",
+		},
+		{
+			name:     "custom directory",
+			rootDir:  "dist",
+			expected: "lite-server",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			provider := StaticfileProvider{RootDir: tt.rootDir}
+			ctx := testingUtils.CreateGenerateContext(t, "../../../examples/staticfile-index")
+			
+			got := provider.GetDevStartCommand(ctx)
+			require.Equal(t, tt.expected, got)
+		})
+	}
+}
+
+func TestDevMode_UsesNodeServer(t *testing.T) {
+	ctx := testingUtils.CreateGenerateContext(t, "../../../examples/staticfile-index")
+	ctx.Dev = true
+	
+	provider := StaticfileProvider{}
+	err := provider.Initialize(ctx)
+	require.NoError(t, err)
+	
+	err = provider.Plan(ctx)
+	require.NoError(t, err)
+	
+	// Should use Node.js server in dev mode
+	require.Equal(t, "lite-server", ctx.Deploy.StartCmd)
+	require.Equal(t, "lite-server", ctx.Deploy.StartCmdHost)
+	require.Equal(t, "3000", ctx.Deploy.RequiredPort) // Development mode should have requiredPort (lite-server default)
+}
+
+func TestProductionMode_UsesCaddy(t *testing.T) {
+	ctx := testingUtils.CreateGenerateContext(t, "../../../examples/staticfile-index")
+	ctx.Dev = false
+	
+	provider := StaticfileProvider{}
+	err := provider.Initialize(ctx)
+	require.NoError(t, err)
+	
+	err = provider.Plan(ctx)
+	require.NoError(t, err)
+	
+	// Should use Caddy in production mode
+	require.Contains(t, ctx.Deploy.StartCmd, "caddy run")
+	require.Contains(t, ctx.Deploy.StartCmd, "--config Caddyfile")
+	require.Empty(t, ctx.Deploy.RequiredPort) // Production mode should NOT have requiredPort
+}
