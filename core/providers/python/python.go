@@ -104,7 +104,8 @@ func (p *PythonProvider) Plan(ctx *generate.GenerateContext) error {
 	if ctx.Deploy.Paths == nil {
 		ctx.Deploy.Paths = []string{}
 	}
-	venvPath := p.GetVenvPath(ctx)
+	// Use the same venv path as install commands for consistency
+	venvPath := p.GetVenvPathForInstall(ctx)
 	ctx.Deploy.Paths = append(ctx.Deploy.Paths, venvPath+"/bin")
 
 	// In dev mode, prefer a development server command when available

@@ -46,7 +46,7 @@
    }
   ],
   "paths": [
-   "/app/.venv/bin"
+   ".venv/bin"
   ],
   "startCommand": "gunicorn --bind 0.0.0.0:3333 main:app",
   "variables": {
