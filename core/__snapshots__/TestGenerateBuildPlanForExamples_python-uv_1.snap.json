@@ -31,7 +31,7 @@
    },
    {
     "include": [
-     "/app/.venv"
+     ".venv"
     ],
     "step": "build"
    },
@@ -45,13 +45,18 @@
     "step": "build"
    }
   ],
+  "paths": [
+   "/app/.venv/bin"
+  ],
   "startCommand": "gunicorn --bind 0.0.0.0:3333 main:app",
   "variables": {
+   "IN_CONTAINER": "1",
    "PIP_DEFAULT_TIMEOUT": "100",
    "PIP_DISABLE_PIP_VERSION_CHECK": "1",
    "PYTHONDONTWRITEBYTECODE": "1",
    "PYTHONFAULTHANDLER": "1",
    "PYTHONHASHSEED": "random",
+   "PYTHONPATH": "/app",
    "PYTHONUNBUFFERED": "1"
   }
  },
@@ -63,8 +68,8 @@
    ],
    "commands": [
     {
-     "cmd": "sh -c 'apt-get update \u0026\u0026 apt-get install -y python3-dev'",
-     "customName": "install apt packages: python3-dev"
+     "cmd": "sh -c 'apt-get update \u0026\u0026 apt-get install -y build-essential g++ gcc libc6-dev python3-dev'",
+     "customName": "install apt packages: build-essential g++ gcc libc6-dev python3-dev"
     }
    ],
    "inputs": [
@@ -128,10 +133,10 @@
      "path": "/root/.local/bin"
     },
     {
-     "path": "/app/.venv/bin"
+     "path": ".venv/bin"
     },
     {
-     "cmd": "uv sync --locked --no-dev --no-install-project"
+     "cmd": "python -m venv .venv \u0026\u0026 .venv/bin/pip install uv \u0026\u0026 .venv/bin/uv sync --locked --no-dev --no-install-project"
     }
    ],
    "inputs": [
@@ -151,7 +156,7 @@
     "UV_COMPILE_BYTECODE": "1",
     "UV_LINK_MODE": "copy",
     "UV_PYTHON_DOWNLOADS": "never",
-    "VIRTUAL_ENV": "/app/.venv"
+    "VIRTUAL_ENV": ".venv"
    }
   },
   {

@@ -11,7 +11,7 @@
  },
  "deploy": {
   "base": {
-   "image": "ghcr.io/railwayapp/railpack-runtime:latest"
+   "step": "packages:apt:runtime"
   },
   "inputs": [
    {
@@ -26,7 +26,7 @@
    },
    {
     "include": [
-     "/app/.venv"
+     ".venv"
     ],
     "step": "build"
    },
@@ -40,13 +40,19 @@
     "step": "build"
    }
   ],
-  "startCommand": "python main.py",
+  "paths": [
+   "/app/.venv/bin"
+  ],
+  "startCommand": "/app/.venv/bin/python main.py",
   "variables": {
+   "IN_CONTAINER": "1",
+   "MPLBACKEND": "Agg",
    "PIP_DEFAULT_TIMEOUT": "100",
    "PIP_DISABLE_PIP_VERSION_CHECK": "1",
    "PYTHONDONTWRITEBYTECODE": "1",
    "PYTHONFAULTHANDLER": "1",
    "PYTHONHASHSEED": "random",
+   "PYTHONPATH": "/app",
    "PYTHONUNBUFFERED": "1"
   }
  },
@@ -58,8 +64,8 @@
    ],
    "commands": [
     {
-     "cmd": "sh -c 'apt-get update \u0026\u0026 apt-get install -y python3-dev'",
-     "customName": "install apt packages: python3-dev"
+     "cmd": "sh -c 'apt-get update \u0026\u0026 apt-get install -y build-essential g++ gcc gfortran libc6-dev liblapack-dev libopenblas-dev python3-dev'",
+     "customName": "install apt packages: build-essential g++ gcc gfortran libc6-dev liblapack-dev libopenblas-dev python3-dev"
     }
    ],
    "inputs": [
@@ -116,10 +122,10 @@
      "path": "/root/.local/bin"
     },
     {
-     "path": "/app/.venv/bin"
+     "path": ".venv/bin"
     },
     {
-     "cmd": "pdm install --check --prod --no-editable"
+     "cmd": "python -m venv .venv \u0026\u0026 .venv/bin/pip install pdm \u0026\u0026 .venv/bin/pdm install --check --prod --no-editable"
     }
    ],
    "inputs": [
@@ -154,6 +160,24 @@
    "secrets": [
     "*"
    ]
+  },
+  {
+   "caches": [
+    "apt",
+    "apt-lists"
+   ],
+   "commands": [
+    {
+     "cmd": "sh -c 'apt-get update \u0026\u0026 apt-get install -y gfortran liblapack3 libopenblas0'",
+     "customName": "install apt packages: gfortran liblapack3 libopenblas0"
+    }
+   ],
+   "inputs": [
+    {
+     "image": "ghcr.io/railwayapp/railpack-runtime:latest"
+    }
+   ],
+   "name": "packages:apt:runtime"
   }
  ]
 }

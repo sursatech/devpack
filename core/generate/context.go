@@ -190,13 +190,16 @@ func (c *GenerateContext) applyConfig() {
 
 	// Update deploy from config
 	if c.Config.Deploy != nil {
-		if c.Config.Deploy.StartCmd != "" {
+		// In dev mode, don't override StartCmd from config to allow provider dev commands
+		if c.Config.Deploy.StartCmd != "" && !c.Dev {
 			c.Deploy.StartCmd = c.Config.Deploy.StartCmd
 		}
 
 		c.Deploy.AptPackages = plan.SpreadStrings(c.Config.Deploy.AptPackages, c.Deploy.AptPackages)
 		c.Deploy.DeployInputs = plan.Spread(c.Config.Deploy.Inputs, c.Deploy.DeployInputs)
-		c.Deploy.Paths = plan.SpreadStrings(c.Config.Deploy.Paths, c.Deploy.Paths)
+		if len(c.Config.Deploy.Paths) > 0 {
+			c.Deploy.Paths = plan.SpreadStrings(c.Config.Deploy.Paths, c.Deploy.Paths)
+		}
 		maps.Copy(c.Deploy.Variables, c.Config.Deploy.Variables)
 	}
 

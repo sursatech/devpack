@@ -31,7 +31,7 @@
    },
    {
     "include": [
-     "/app/.venv"
+     ".venv"
     ],
     "step": "build"
    },
@@ -45,13 +45,18 @@
     "step": "build"
    }
   ],
-  "startCommand": "python main.py",
+  "paths": [
+   "/app/.venv/bin"
+  ],
+  "startCommand": "/app/.venv/bin/python main.py",
   "variables": {
+   "IN_CONTAINER": "1",
    "PIP_DEFAULT_TIMEOUT": "100",
    "PIP_DISABLE_PIP_VERSION_CHECK": "1",
    "PYTHONDONTWRITEBYTECODE": "1",
    "PYTHONFAULTHANDLER": "1",
    "PYTHONHASHSEED": "random",
+   "PYTHONPATH": "/app",
    "PYTHONUNBUFFERED": "1"
   }
  },
@@ -63,8 +68,8 @@
    ],
    "commands": [
     {
-     "cmd": "sh -c 'apt-get update \u0026\u0026 apt-get install -y libcairo2-dev libpq-dev python3-dev'",
-     "customName": "install apt packages: libcairo2-dev libpq-dev python3-dev"
+     "cmd": "sh -c 'apt-get update \u0026\u0026 apt-get install -y build-essential g++ gcc libc6-dev libcairo2-dev libpq-dev python3-dev'",
+     "customName": "install apt packages: build-essential g++ gcc libc6-dev libcairo2-dev libpq-dev python3-dev"
     }
    ],
    "inputs": [
@@ -117,17 +122,14 @@
    ],
    "commands": [
     {
-     "cmd": "python -m venv /app/.venv"
-    },
-    {
-     "path": "/app/.venv/bin"
-    },
-    {
      "dest": "requirements.txt",
      "src": "requirements.txt"
     },
     {
-     "cmd": "pip install -r requirements.txt"
+     "cmd": "python -m venv .venv \u0026\u0026 .venv/bin/pip install -r requirements.txt"
+    },
+    {
+     "path": ".venv/bin"
     }
    ],
    "inputs": [
@@ -144,7 +146,7 @@
     "PYTHONFAULTHANDLER": "1",
     "PYTHONHASHSEED": "random",
     "PYTHONUNBUFFERED": "1",
-    "VIRTUAL_ENV": "/app/.venv"
+    "VIRTUAL_ENV": ".venv"
    }
   },
   {
