@@ -121,7 +121,10 @@
      "src": "requirements.txt"
     },
     {
-     "cmd": "python -m venv .venv \u0026\u0026 .venv/bin/pip install -r requirements.txt"
+     "cmd": "python -m venv .venv"
+    },
+    {
+     "cmd": ".venv/bin/pip install -r requirements.txt"
     },
     {
      "path": ".venv/bin"

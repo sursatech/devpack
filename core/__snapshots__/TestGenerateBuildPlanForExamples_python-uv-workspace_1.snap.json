@@ -128,7 +128,13 @@
      "path": ".venv/bin"
     },
     {
-     "cmd": "python -m venv .venv \u0026\u0026 .venv/bin/pip install uv \u0026\u0026 .venv/bin/uv sync --locked --no-dev --no-install-project"
+     "cmd": "python -m venv .venv"
+    },
+    {
+     "cmd": ".venv/bin/pip install uv"
+    },
+    {
+     "cmd": ".venv/bin/uv sync --locked --no-dev --no-install-project"
     }
    ],
    "inputs": [

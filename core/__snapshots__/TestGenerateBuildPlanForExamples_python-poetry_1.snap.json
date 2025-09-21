@@ -124,7 +124,13 @@
      "path": ".venv/bin"
     },
     {
-     "cmd": "python -m venv .venv \u0026\u0026 .venv/bin/pip install poetry \u0026\u0026 .venv/bin/poetry install --no-interaction --no-ansi --only main --no-root"
+     "cmd": "python -m venv .venv"
+    },
+    {
+     "cmd": ".venv/bin/pip install poetry"
+    },
+    {
+     "cmd": ".venv/bin/poetry install --no-interaction --no-ansi --only main --no-root"
     }
    ],
    "inputs": [

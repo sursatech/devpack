@@ -125,7 +125,13 @@
      "path": ".venv/bin"
     },
     {
-     "cmd": "python -m venv .venv \u0026\u0026 .venv/bin/pip install pdm \u0026\u0026 .venv/bin/pdm install --check --prod --no-editable"
+     "cmd": "python -m venv .venv"
+    },
+    {
+     "cmd": ".venv/bin/pip install pdm"
+    },
+    {
+     "cmd": ".venv/bin/pdm install --check --prod --no-editable"
     }
    ],
    "inputs": [

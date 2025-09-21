@@ -124,7 +124,13 @@
      "src": "Pipfile.lock"
     },
     {
-     "cmd": "python -m venv .venv \u0026\u0026 .venv/bin/pip install pipenv \u0026\u0026 .venv/bin/pipenv install --deploy --ignore-pipfile"
+     "cmd": "python -m venv .venv"
+    },
+    {
+     "cmd": ".venv/bin/pip install pipenv"
+    },
+    {
+     "cmd": ".venv/bin/pipenv install --deploy --ignore-pipfile"
     }
    ],
    "inputs": [

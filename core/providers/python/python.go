@@ -74,9 +74,10 @@ func (p *PythonProvider) Plan(ctx *generate.GenerateContext) error {
 		installOutputs = p.InstallPip(ctx, install)
 	} else if p.hasPyproject(ctx) && p.hasUv(ctx) {
 		installOutputs = p.InstallUv(ctx, install)
+		venvPath := p.GetVenvPathForInstall(ctx)
 		build.AddCommands([]plan.Command{
 			// the project is not installed during the install phase, because it requires the project source
-			plan.NewExecCommand("uv sync --locked --no-dev --no-editable"),
+			plan.NewExecCommand(fmt.Sprintf("%s/bin/uv sync --locked --no-dev --no-editable", venvPath)),
 		})
 	} else if p.hasPyproject(ctx) && p.hasPoetry(ctx) {
 		installOutputs = p.InstallPoetry(ctx, install)
@@ -92,14 +93,14 @@ func (p *PythonProvider) Plan(ctx *generate.GenerateContext) error {
 	build.AddInput(plan.NewLocalLayer())
 
 	ctx.Deploy.StartCmd = p.GetStartCommand(ctx)
-	
+
 	// Use different environment variables for dev vs production
 	if ctx.Dev {
 		maps.Copy(ctx.Deploy.Variables, p.GetPythonDevEnvVars(ctx))
 	} else {
 		maps.Copy(ctx.Deploy.Variables, p.GetPythonProdEnvVars(ctx))
 	}
-	
+
 	// Add virtual environment to PATH for deploy step
 	if ctx.Deploy.Paths == nil {
 		ctx.Deploy.Paths = []string{}
@@ -178,7 +179,7 @@ func (p *PythonProvider) GetStartCommand(ctx *generate.GenerateContext) string {
 func (p *PythonProvider) GetDevStartCommand(ctx *generate.GenerateContext) string {
 	// Check if this is a Poetry project
 	hasPoetry := p.hasPoetry(ctx)
-	
+
 	// Django: use runserver with development setup
 	if p.isDjango(ctx) {
 		if hasPoetry {
@@ -188,76 +189,76 @@ func (p *PythonProvider) GetDevStartCommand(ctx *generate.GenerateContext) strin
 		return fmt.Sprintf("%s/bin/python manage.py runserver 0.0.0.0:8000", venvPath)
 	}
 
-    mainPythonFile := p.getMainPythonFile(ctx)
-    hasMainPythonFile := mainPythonFile != ""
+	mainPythonFile := p.getMainPythonFile(ctx)
+	hasMainPythonFile := mainPythonFile != ""
 
-    // FastAPI (uvicorn) with reload if available
-    if p.isFastAPI(ctx) && hasMainPythonFile {
-        if hasPoetry {
-            return "poetry run uvicorn main:app --reload --host 0.0.0.0 --port 8000"
-        }
-        venvPath := p.GetVenvPath(ctx)
-        return fmt.Sprintf("%s/bin/uvicorn main:app --reload --host 0.0.0.0 --port 8000", venvPath)
-    }
+	// FastAPI (uvicorn) with reload if available
+	if p.isFastAPI(ctx) && hasMainPythonFile {
+		if hasPoetry {
+			return "poetry run uvicorn main:app --reload --host 0.0.0.0 --port 8000"
+		}
+		venvPath := p.GetVenvPath(ctx)
+		return fmt.Sprintf("%s/bin/uvicorn main:app --reload --host 0.0.0.0 --port 8000", venvPath)
+	}
 
-    // Streamlit apps
-    if p.isStreamlit(ctx) {
-        if hasPoetry {
-            return "poetry run streamlit run main.py --server.address 0.0.0.0 --server.port 8501"
-        }
-        venvPath := p.GetVenvPath(ctx)
-        return fmt.Sprintf("%s/bin/streamlit run main.py --server.address 0.0.0.0 --server.port 8501", venvPath)
-    }
+	// Streamlit apps
+	if p.isStreamlit(ctx) {
+		if hasPoetry {
+			return "poetry run streamlit run main.py --server.address 0.0.0.0 --server.port 8501"
+		}
+		venvPath := p.GetVenvPath(ctx)
+		return fmt.Sprintf("%s/bin/streamlit run main.py --server.address 0.0.0.0 --server.port 8501", venvPath)
+	}
 
-    // Gradio apps
-    if p.isGradio(ctx) {
-        if hasPoetry {
-            return "poetry run python main.py --server-name 0.0.0.0 --server-port 7860"
-        }
-        venvPath := p.GetVenvPath(ctx)
-        return fmt.Sprintf("%s/bin/python main.py --server-name 0.0.0.0 --server-port 7860", venvPath)
-    }
+	// Gradio apps
+	if p.isGradio(ctx) {
+		if hasPoetry {
+			return "poetry run python main.py --server-name 0.0.0.0 --server-port 7860"
+		}
+		venvPath := p.GetVenvPath(ctx)
+		return fmt.Sprintf("%s/bin/python main.py --server-name 0.0.0.0 --server-port 7860", venvPath)
+	}
 
-    // Jupyter notebooks
-    if p.isJupyter(ctx) {
-        if hasPoetry {
-            return "poetry run jupyter lab --ip 0.0.0.0 --port 8888 --no-browser --allow-root"
-        }
-        venvPath := p.GetVenvPath(ctx)
-        return fmt.Sprintf("%s/bin/jupyter lab --ip 0.0.0.0 --port 8888 --no-browser --allow-root", venvPath)
-    }
+	// Jupyter notebooks
+	if p.isJupyter(ctx) {
+		if hasPoetry {
+			return "poetry run jupyter lab --ip 0.0.0.0 --port 8888 --no-browser --allow-root"
+		}
+		venvPath := p.GetVenvPath(ctx)
+		return fmt.Sprintf("%s/bin/jupyter lab --ip 0.0.0.0 --port 8888 --no-browser --allow-root", venvPath)
+	}
 
-    // Flask: prefer flask dev server if flask is present
-    if p.isFlask(ctx) {
-        if hasPoetry {
-            if mainPythonFile != "" {
-                return fmt.Sprintf("poetry run flask --app %s run --host 0.0.0.0 --port 5000", mainPythonFile)
-            }
-            return "poetry run flask run --host 0.0.0.0 --port 5000"
-        }
-        venvPath := p.GetVenvPath(ctx)
-        if mainPythonFile != "" {
-            return fmt.Sprintf("%s/bin/flask --app %s run --host 0.0.0.0 --port 5000", venvPath, mainPythonFile)
-        }
-        return fmt.Sprintf("%s/bin/flask run --host 0.0.0.0 --port 5000", venvPath)
-    }
+	// Flask: prefer flask dev server if flask is present
+	if p.isFlask(ctx) {
+		if hasPoetry {
+			if mainPythonFile != "" {
+				return fmt.Sprintf("poetry run flask --app %s run --host 0.0.0.0 --port 5000", mainPythonFile)
+			}
+			return "poetry run flask run --host 0.0.0.0 --port 5000"
+		}
+		venvPath := p.GetVenvPath(ctx)
+		if mainPythonFile != "" {
+			return fmt.Sprintf("%s/bin/flask --app %s run --host 0.0.0.0 --port 5000", venvPath, mainPythonFile)
+		}
+		return fmt.Sprintf("%s/bin/flask run --host 0.0.0.0 --port 5000", venvPath)
+	}
 
-    if hasMainPythonFile {
-        if hasPoetry {
-            return fmt.Sprintf("poetry run python %s", mainPythonFile)
-        }
-        venvPath := p.GetVenvPath(ctx)
-        return fmt.Sprintf("%s/bin/python %s", venvPath, mainPythonFile)
-    }
+	if hasMainPythonFile {
+		if hasPoetry {
+			return fmt.Sprintf("poetry run python %s", mainPythonFile)
+		}
+		venvPath := p.GetVenvPath(ctx)
+		return fmt.Sprintf("%s/bin/python %s", venvPath, mainPythonFile)
+	}
 
-    return ""
+	return ""
 }
 
 // GetDevStartCommandHost returns a development-friendly start command for host/local development
 func (p *PythonProvider) GetDevStartCommandHost(ctx *generate.GenerateContext) string {
 	// Check if this is a Poetry project
 	hasPoetry := p.hasPoetry(ctx)
-	
+
 	// Django: use runserver with development setup
 	if p.isDjango(ctx) {
 		if hasPoetry {
@@ -267,101 +268,101 @@ func (p *PythonProvider) GetDevStartCommandHost(ctx *generate.GenerateContext) s
 		return fmt.Sprintf("%s/bin/python manage.py runserver 0.0.0.0:8000", venvPath)
 	}
 
-    mainPythonFile := p.getMainPythonFile(ctx)
-    hasMainPythonFile := mainPythonFile != ""
+	mainPythonFile := p.getMainPythonFile(ctx)
+	hasMainPythonFile := mainPythonFile != ""
 
-    // FastAPI (uvicorn) with reload if available
-    if p.isFastAPI(ctx) && hasMainPythonFile {
-        if hasPoetry {
-            return "poetry run uvicorn main:app --reload --host 0.0.0.0 --port 8000"
-        }
-        venvPath := p.GetVenvPathForHost(ctx)
-        return fmt.Sprintf("%s/bin/uvicorn main:app --reload --host 0.0.0.0 --port 8000", venvPath)
-    }
+	// FastAPI (uvicorn) with reload if available
+	if p.isFastAPI(ctx) && hasMainPythonFile {
+		if hasPoetry {
+			return "poetry run uvicorn main:app --reload --host 0.0.0.0 --port 8000"
+		}
+		venvPath := p.GetVenvPathForHost(ctx)
+		return fmt.Sprintf("%s/bin/uvicorn main:app --reload --host 0.0.0.0 --port 8000", venvPath)
+	}
 
-    // Streamlit apps
-    if p.isStreamlit(ctx) {
-        if hasPoetry {
-            return "poetry run streamlit run main.py --server.address 0.0.0.0 --server.port 8501"
-        }
-        venvPath := p.GetVenvPathForHost(ctx)
-        return fmt.Sprintf("%s/bin/streamlit run main.py --server.address 0.0.0.0 --server.port 8501", venvPath)
-    }
+	// Streamlit apps
+	if p.isStreamlit(ctx) {
+		if hasPoetry {
+			return "poetry run streamlit run main.py --server.address 0.0.0.0 --server.port 8501"
+		}
+		venvPath := p.GetVenvPathForHost(ctx)
+		return fmt.Sprintf("%s/bin/streamlit run main.py --server.address 0.0.0.0 --server.port 8501", venvPath)
+	}
 
-    // Gradio apps
-    if p.isGradio(ctx) {
-        if hasPoetry {
-            return "poetry run python main.py --server-name 0.0.0.0 --server-port 7860"
-        }
-        venvPath := p.GetVenvPathForHost(ctx)
-        return fmt.Sprintf("%s/bin/python main.py --server-name 0.0.0.0 --server-port 7860", venvPath)
-    }
+	// Gradio apps
+	if p.isGradio(ctx) {
+		if hasPoetry {
+			return "poetry run python main.py --server-name 0.0.0.0 --server-port 7860"
+		}
+		venvPath := p.GetVenvPathForHost(ctx)
+		return fmt.Sprintf("%s/bin/python main.py --server-name 0.0.0.0 --server-port 7860", venvPath)
+	}
 
-    // Jupyter notebooks
-    if p.isJupyter(ctx) {
-        if hasPoetry {
-            return "poetry run jupyter lab --ip 0.0.0.0 --port 8888 --no-browser --allow-root"
-        }
-        venvPath := p.GetVenvPathForHost(ctx)
-        return fmt.Sprintf("%s/bin/jupyter lab --ip 0.0.0.0 --port 8888 --no-browser --allow-root", venvPath)
-    }
+	// Jupyter notebooks
+	if p.isJupyter(ctx) {
+		if hasPoetry {
+			return "poetry run jupyter lab --ip 0.0.0.0 --port 8888 --no-browser --allow-root"
+		}
+		venvPath := p.GetVenvPathForHost(ctx)
+		return fmt.Sprintf("%s/bin/jupyter lab --ip 0.0.0.0 --port 8888 --no-browser --allow-root", venvPath)
+	}
 
-    // Flask: prefer flask dev server if flask is present
-    if p.isFlask(ctx) {
-        if hasPoetry {
-            if mainPythonFile != "" {
-                return fmt.Sprintf("poetry run flask --app %s run --host 0.0.0.0 --port 5000", mainPythonFile)
-            }
-            return "poetry run flask run --host 0.0.0.0 --port 5000"
-        }
-        venvPath := p.GetVenvPathForHost(ctx)
-        if mainPythonFile != "" {
-            return fmt.Sprintf("%s/bin/flask --app %s run --host 0.0.0.0 --port 5000", venvPath, mainPythonFile)
-        }
-        return fmt.Sprintf("%s/bin/flask run --host 0.0.0.0 --port 5000", venvPath)
-    }
+	// Flask: prefer flask dev server if flask is present
+	if p.isFlask(ctx) {
+		if hasPoetry {
+			if mainPythonFile != "" {
+				return fmt.Sprintf("poetry run flask --app %s run --host 0.0.0.0 --port 5000", mainPythonFile)
+			}
+			return "poetry run flask run --host 0.0.0.0 --port 5000"
+		}
+		venvPath := p.GetVenvPathForHost(ctx)
+		if mainPythonFile != "" {
+			return fmt.Sprintf("%s/bin/flask --app %s run --host 0.0.0.0 --port 5000", venvPath, mainPythonFile)
+		}
+		return fmt.Sprintf("%s/bin/flask run --host 0.0.0.0 --port 5000", venvPath)
+	}
 
-    if hasMainPythonFile {
-        if hasPoetry {
-            return fmt.Sprintf("poetry run python %s", mainPythonFile)
-        }
-        venvPath := p.GetVenvPathForHost(ctx)
-        return fmt.Sprintf("%s/bin/python %s", venvPath, mainPythonFile)
-    }
+	if hasMainPythonFile {
+		if hasPoetry {
+			return fmt.Sprintf("poetry run python %s", mainPythonFile)
+		}
+		venvPath := p.GetVenvPathForHost(ctx)
+		return fmt.Sprintf("%s/bin/python %s", venvPath, mainPythonFile)
+	}
 
-    return ""
+	return ""
 }
 
 // getDevPort returns the appropriate port for development mode based on framework
 func (p *PythonProvider) getDevPort(ctx *generate.GenerateContext) string {
-    if p.isDjango(ctx) {
-        return "8000" // Django runserver default
-    }
-    if p.isFlask(ctx) {
-        return "5000" // Flask default port
-    }
-    if p.isFastAPI(ctx) {
-        return "8000" // FastAPI/uvicorn default
-    }
-    if p.isStreamlit(ctx) {
-        return "8501" // Streamlit default port
-    }
-    if p.isGradio(ctx) {
-        return "7860" // Gradio default port
-    }
-    if p.isJupyter(ctx) {
-        return "8888" // Jupyter default port
-    }
-    if p.isFasthtml(ctx) {
-        return "8000" // FastHTML default port
-    }
-    if p.isDataScience(ctx) {
-        return "8888" // Data science apps often use Jupyter port
-    }
-    if p.isWebScraping(ctx) {
-        return "8000" // Web scraping tools often use port 8000
-    }
-    return "8000" // Default fallback
+	if p.isDjango(ctx) {
+		return "8000" // Django runserver default
+	}
+	if p.isFlask(ctx) {
+		return "5000" // Flask default port
+	}
+	if p.isFastAPI(ctx) {
+		return "8000" // FastAPI/uvicorn default
+	}
+	if p.isStreamlit(ctx) {
+		return "8501" // Streamlit default port
+	}
+	if p.isGradio(ctx) {
+		return "7860" // Gradio default port
+	}
+	if p.isJupyter(ctx) {
+		return "8888" // Jupyter default port
+	}
+	if p.isFasthtml(ctx) {
+		return "8000" // FastHTML default port
+	}
+	if p.isDataScience(ctx) {
+		return "8888" // Data science apps often use Jupyter port
+	}
+	if p.isWebScraping(ctx) {
+		return "8000" // Web scraping tools often use port 8000
+	}
+	return "8000" // Default fallback
 }
 
 func (p *PythonProvider) getMainPythonFile(ctx *generate.GenerateContext) string {
@@ -373,7 +374,7 @@ func (p *PythonProvider) getMainPythonFile(ctx *generate.GenerateContext) string
 			}
 		}
 	}
-	
+
 	if p.isGradio(ctx) {
 		for _, file := range []string{"app.py", "main.py", "gradio_app.py", "interface.py"} {
 			if ctx.App.HasMatch(file) {
@@ -381,7 +382,7 @@ func (p *PythonProvider) getMainPythonFile(ctx *generate.GenerateContext) string
 			}
 		}
 	}
-	
+
 	if p.isJupyter(ctx) {
 		for _, file := range []string{"notebook.ipynb", "main.ipynb", "app.ipynb", "analysis.ipynb"} {
 			if ctx.App.HasMatch(file) {
@@ -389,7 +390,7 @@ func (p *PythonProvider) getMainPythonFile(ctx *generate.GenerateContext) string
 			}
 		}
 	}
-	
+
 	if p.isDataScience(ctx) {
 		for _, file := range []string{"analysis.py", "main.py", "app.py", "notebook.py", "data_analysis.py"} {
 			if ctx.App.HasMatch(file) {
@@ -397,7 +398,7 @@ func (p *PythonProvider) getMainPythonFile(ctx *generate.GenerateContext) string
 			}
 		}
 	}
-	
+
 	if p.isWebScraping(ctx) {
 		for _, file := range []string{"scraper.py", "main.py", "app.py", "spider.py", "crawler.py"} {
 			if ctx.App.HasMatch(file) {
@@ -405,7 +406,7 @@ func (p *PythonProvider) getMainPythonFile(ctx *generate.GenerateContext) string
 			}
 		}
 	}
-	
+
 	// General Python file detection
 	for _, file := range []string{"main.py", "app.py", "bot.py", "hello.py", "server.py", "index.py", "run.py", "start.py"} {
 		if ctx.App.HasMatch(file) {
@@ -452,11 +453,15 @@ func (p *PythonProvider) InstallUv(ctx *generate.GenerateContext, install *gener
 	install.AddCommands([]plan.Command{
 		plan.NewPathCommand(LOCAL_BIN_PATH),
 		plan.NewPathCommand(venvPath + "/bin"),
-		// Combined command: create venv and sync dependencies
+		// Create virtual environment
+		plan.NewExecCommand(fmt.Sprintf("python -m venv %s", venvPath)),
+		// Install uv in the virtual environment
+		plan.NewExecCommand(fmt.Sprintf("%s/bin/pip install uv", venvPath)),
+		// Sync dependencies with uv
 		// if we exclude workspace packages, uv.lock will fail the frozen test and the user will get an error
 		// to avoid this, we (a) detect if workspace packages are required (b) if they aren't, we don't include project
 		// source in order to optimize layer caching (c) install project in the build phase.
-		plan.NewExecCommand(fmt.Sprintf("python -m venv %s && %s/bin/pip install uv && %s/bin/uv sync --locked --no-dev --no-install-project", venvPath, venvPath, venvPath)),
+		plan.NewExecCommand(fmt.Sprintf("%s/bin/uv sync --locked --no-dev --no-install-project", venvPath)),
 	})
 
 	return []string{venvPath}
@@ -482,14 +487,22 @@ func (p *PythonProvider) InstallPipenv(ctx *generate.GenerateContext, install *g
 		install.AddCommands([]plan.Command{
 			plan.NewCopyCommand("Pipfile"),
 			plan.NewCopyCommand("Pipfile.lock"),
-			// Combined command: create venv and install with pipenv
-			plan.NewExecCommand(fmt.Sprintf("python -m venv %s && %s/bin/pip install pipenv && %s/bin/pipenv install --deploy --ignore-pipfile", venvPath, venvPath, venvPath)),
+			// Create virtual environment
+			plan.NewExecCommand(fmt.Sprintf("python -m venv %s", venvPath)),
+			// Install pipenv in the virtual environment
+			plan.NewExecCommand(fmt.Sprintf("%s/bin/pip install pipenv", venvPath)),
+			// Install dependencies with pipenv
+			plan.NewExecCommand(fmt.Sprintf("%s/bin/pipenv install --deploy --ignore-pipfile", venvPath)),
 		})
 	} else {
 		install.AddCommands([]plan.Command{
 			plan.NewCopyCommand("Pipfile"),
-			// Combined command: create venv and install with pipenv
-			plan.NewExecCommand(fmt.Sprintf("python -m venv %s && %s/bin/pip install pipenv && %s/bin/pipenv install --skip-lock", venvPath, venvPath, venvPath)),
+			// Create virtual environment
+			plan.NewExecCommand(fmt.Sprintf("python -m venv %s", venvPath)),
+			// Install pipenv in the virtual environment
+			plan.NewExecCommand(fmt.Sprintf("%s/bin/pip install pipenv", venvPath)),
+			// Install dependencies with pipenv
+			plan.NewExecCommand(fmt.Sprintf("%s/bin/pipenv install --skip-lock", venvPath)),
 		})
 	}
 
@@ -509,8 +522,12 @@ func (p *PythonProvider) InstallPDM(ctx *generate.GenerateContext, install *gene
 	install.AddCommands([]plan.Command{
 		plan.NewPathCommand(LOCAL_BIN_PATH),
 		plan.NewPathCommand(venvPath + "/bin"),
-		// Combined command: create venv and install with pdm
-		plan.NewExecCommand(fmt.Sprintf("python -m venv %s && %s/bin/pip install pdm && %s/bin/pdm install --check --prod --no-editable", venvPath, venvPath, venvPath)),
+		// Create virtual environment
+		plan.NewExecCommand(fmt.Sprintf("python -m venv %s", venvPath)),
+		// Install pdm in the virtual environment
+		plan.NewExecCommand(fmt.Sprintf("%s/bin/pip install pdm", venvPath)),
+		// Install dependencies with pdm
+		plan.NewExecCommand(fmt.Sprintf("%s/bin/pdm install --check --prod --no-editable", venvPath)),
 	})
 
 	return []string{venvPath}
@@ -531,8 +548,12 @@ func (p *PythonProvider) InstallPoetry(ctx *generate.GenerateContext, install *g
 	install.AddCommands([]plan.Command{
 		plan.NewPathCommand(LOCAL_BIN_PATH),
 		plan.NewPathCommand(venvPath + "/bin"),
-		// Combined command: create venv and install with poetry
-		plan.NewExecCommand(fmt.Sprintf("python -m venv %s && %s/bin/pip install poetry && %s/bin/poetry install --no-interaction --no-ansi --only main --no-root", venvPath, venvPath, venvPath)),
+		// Create virtual environment
+		plan.NewExecCommand(fmt.Sprintf("python -m venv %s", venvPath)),
+		// Install poetry in the virtual environment
+		plan.NewExecCommand(fmt.Sprintf("%s/bin/pip install poetry", venvPath)),
+		// Install dependencies with poetry
+		plan.NewExecCommand(fmt.Sprintf("%s/bin/poetry install --no-interaction --no-ansi --only main --no-root", venvPath)),
 	})
 
 	return []string{venvPath}
@@ -551,10 +572,11 @@ func (p *PythonProvider) InstallPip(ctx *generate.GenerateContext, install *gene
 
 	// Copy requirements.txt before installing
 	p.copyInstallFiles(ctx, install)
-	
-	// Combined command: create venv and install dependencies
+
+	// Create virtual environment and install dependencies
 	install.AddCommands([]plan.Command{
-		plan.NewExecCommand(fmt.Sprintf("python -m venv %s && %s/bin/pip install -r requirements.txt", venvPath, venvPath)),
+		plan.NewExecCommand(fmt.Sprintf("python -m venv %s", venvPath)),
+		plan.NewExecCommand(fmt.Sprintf("%s/bin/pip install -r requirements.txt", venvPath)),
 		plan.NewPathCommand(venvPath + "/bin"),
 	})
 
@@ -701,7 +723,7 @@ func (p *PythonProvider) GetPythonDevEnvVars(ctx *generate.GenerateContext) map[
 		} else if p.isWebScraping(ctx) {
 			envVars["DISPLAY"] = ":99" // For headless browser testing
 		}
-		
+
 		// Only add container-specific variables for production
 		// In development, these are not needed
 	}
@@ -712,16 +734,16 @@ func (p *PythonProvider) GetPythonDevEnvVars(ctx *generate.GenerateContext) map[
 // GetPythonProdEnvVars returns production-specific environment variables
 func (p *PythonProvider) GetPythonProdEnvVars(ctx *generate.GenerateContext) map[string]string {
 	envVars := p.GetPythonDevEnvVars(ctx)
-	
+
 	// Add production-specific variables
 	envVars["IN_CONTAINER"] = "1"
 	envVars["PYTHONPATH"] = "/app"
-	
+
 	// Add MPLBACKEND for data science apps in production
 	if p.isDataScience(ctx) {
 		envVars["MPLBACKEND"] = "Agg"
 	}
-	
+
 	return envVars
 }
 
@@ -893,20 +915,20 @@ func (p *PythonProvider) isJupyter(ctx *generate.GenerateContext) bool {
 }
 
 func (p *PythonProvider) isDataScience(ctx *generate.GenerateContext) bool {
-	return p.usesDep(ctx, "pandas") || p.usesDep(ctx, "numpy") || p.usesDep(ctx, "matplotlib") || 
-		   p.usesDep(ctx, "seaborn") || p.usesDep(ctx, "scikit-learn") || p.usesDep(ctx, "tensorflow") || 
-		   p.usesDep(ctx, "pytorch") || p.usesDep(ctx, "keras")
+	return p.usesDep(ctx, "pandas") || p.usesDep(ctx, "numpy") || p.usesDep(ctx, "matplotlib") ||
+		p.usesDep(ctx, "seaborn") || p.usesDep(ctx, "scikit-learn") || p.usesDep(ctx, "tensorflow") ||
+		p.usesDep(ctx, "pytorch") || p.usesDep(ctx, "keras")
 }
 
 func (p *PythonProvider) isWebScraping(ctx *generate.GenerateContext) bool {
-	return p.usesDep(ctx, "requests") || p.usesDep(ctx, "scrapy") || p.usesDep(ctx, "beautifulsoup4") || 
-		   p.usesDep(ctx, "selenium") || p.usesDep(ctx, "playwright")
+	return p.usesDep(ctx, "requests") || p.usesDep(ctx, "scrapy") || p.usesDep(ctx, "beautifulsoup4") ||
+		p.usesDep(ctx, "selenium") || p.usesDep(ctx, "playwright")
 }
 
 func (p *PythonProvider) isDatabase(ctx *generate.GenerateContext) bool {
-	return p.usesDep(ctx, "sqlalchemy") || p.usesDep(ctx, "psycopg2") || p.usesDep(ctx, "mysqlclient") || 
-		   p.usesDep(ctx, "pymongo") || p.usesDep(ctx, "redis") || p.usesDep(ctx, "databases") ||
-		   p.usesDep(ctx, "flask-sqlalchemy") || p.usesDep(ctx, "django") || p.usesDep(ctx, "tortoise-orm")
+	return p.usesDep(ctx, "sqlalchemy") || p.usesDep(ctx, "psycopg2") || p.usesDep(ctx, "mysqlclient") ||
+		p.usesDep(ctx, "pymongo") || p.usesDep(ctx, "redis") || p.usesDep(ctx, "databases") ||
+		p.usesDep(ctx, "flask-sqlalchemy") || p.usesDep(ctx, "django") || p.usesDep(ctx, "tortoise-orm")
 }
 
 func (p *PythonProvider) getRuntime(ctx *generate.GenerateContext) string {
@@ -936,44 +958,44 @@ func (p *PythonProvider) getRuntime(ctx *generate.GenerateContext) string {
 // Mapping of python dependencies to required apt packages
 
 var pythonBuildDepRequirements = map[string][]string{
-	"pycairo":     {"libcairo2-dev"},
-	"pillow":      {"libjpeg-dev", "zlib1g-dev", "libpng-dev"},
-	"opencv":      {"libopencv-dev", "libglib2.0-0", "libsm6", "libxext6", "libxrender-dev", "libgomp1"},
-	"numpy":       {"libopenblas-dev", "liblapack-dev", "gfortran"},
-	"scipy":       {"libopenblas-dev", "liblapack-dev", "gfortran"},
-	"pandas":      {"libopenblas-dev", "liblapack-dev", "gfortran"},
-	"matplotlib":  {"libfreetype6-dev", "libpng-dev"},
+	"pycairo":      {"libcairo2-dev"},
+	"pillow":       {"libjpeg-dev", "zlib1g-dev", "libpng-dev"},
+	"opencv":       {"libopencv-dev", "libglib2.0-0", "libsm6", "libxext6", "libxrender-dev", "libgomp1"},
+	"numpy":        {"libopenblas-dev", "liblapack-dev", "gfortran"},
+	"scipy":        {"libopenblas-dev", "liblapack-dev", "gfortran"},
+	"pandas":       {"libopenblas-dev", "liblapack-dev", "gfortran"},
+	"matplotlib":   {"libfreetype6-dev", "libpng-dev"},
 	"scikit-learn": {"libopenblas-dev", "liblapack-dev", "gfortran"},
-	"tensorflow":  {"libcudnn8", "libcudnn8-dev", "libcublas11", "libcublas-dev"},
-	"pytorch":     {"libcudnn8", "libcudnn8-dev", "libcublas11", "libcublas-dev"},
-	"lxml":        {"libxml2-dev", "libxslt1-dev"},
+	"tensorflow":   {"libcudnn8", "libcudnn8-dev", "libcublas11", "libcublas-dev"},
+	"pytorch":      {"libcudnn8", "libcudnn8-dev", "libcublas11", "libcublas-dev"},
+	"lxml":         {"libxml2-dev", "libxslt1-dev"},
 	"cryptography": {"libssl-dev", "libffi-dev"},
-	"psycopg2":    {"libpq-dev"},
-	"mysqlclient": {"default-libmysqlclient-dev"},
-	"redis":       {"redis-server"},
-	"selenium":    {"chromium-browser", "chromium-chromedriver"},
-	"playwright":  {"chromium-browser", "chromium-chromedriver"},
+	"psycopg2":     {"libpq-dev"},
+	"mysqlclient":  {"default-libmysqlclient-dev"},
+	"redis":        {"redis-server"},
+	"selenium":     {"chromium-browser", "chromium-chromedriver"},
+	"playwright":   {"chromium-browser", "chromium-chromedriver"},
 }
 
 var pythonRuntimeDepRequirements = map[string][]string{
-	"pycairo":     {"libcairo2"},
-	"pdf2image":   {"poppler-utils"},
-	"pydub":       {"ffmpeg"},
-	"pymovie":     {"ffmpeg", "qt5-qmake", "qtbase5-dev", "qtbase5-dev-tools", "qttools5-dev-tools", "libqt5core5a", "python3-pyqt5"},
-	"pillow":      {"libjpeg62-turbo", "zlib1g", "libpng16-16"},
-	"opencv":      {"libopencv-core4.5", "libopencv-imgproc4.5", "libopencv-imgcodecs4.5", "libglib2.0-0", "libsm6", "libxext6", "libxrender1", "libgomp1"},
-	"numpy":       {"libopenblas0", "liblapack3", "gfortran"},
-	"scipy":       {"libopenblas0", "liblapack3", "gfortran"},
-	"pandas":      {"libopenblas0", "liblapack3", "gfortran"},
-	"matplotlib":  {"libfreetype6", "libpng16-16"},
+	"pycairo":      {"libcairo2"},
+	"pdf2image":    {"poppler-utils"},
+	"pydub":        {"ffmpeg"},
+	"pymovie":      {"ffmpeg", "qt5-qmake", "qtbase5-dev", "qtbase5-dev-tools", "qttools5-dev-tools", "libqt5core5a", "python3-pyqt5"},
+	"pillow":       {"libjpeg62-turbo", "zlib1g", "libpng16-16"},
+	"opencv":       {"libopencv-core4.5", "libopencv-imgproc4.5", "libopencv-imgcodecs4.5", "libglib2.0-0", "libsm6", "libxext6", "libxrender1", "libgomp1"},
+	"numpy":        {"libopenblas0", "liblapack3", "gfortran"},
+	"scipy":        {"libopenblas0", "liblapack3", "gfortran"},
+	"pandas":       {"libopenblas0", "liblapack3", "gfortran"},
+	"matplotlib":   {"libfreetype6", "libpng16-16"},
 	"scikit-learn": {"libopenblas0", "liblapack3", "gfortran"},
-	"tensorflow":  {"libcudnn8", "libcublas11"},
-	"pytorch":     {"libcudnn8", "libcublas11"},
-	"lxml":        {"libxml2", "libxslt1.1"},
+	"tensorflow":   {"libcudnn8", "libcublas11"},
+	"pytorch":      {"libcudnn8", "libcublas11"},
+	"lxml":         {"libxml2", "libxslt1.1"},
 	"cryptography": {"libssl1.1", "libffi7"},
-	"psycopg2":    {"libpq5"},
-	"mysqlclient": {"default-mysql-client"},
-	"redis":       {"redis-server"},
-	"selenium":    {"chromium-browser", "chromium-chromedriver"},
-	"playwright":  {"chromium-browser", "chromium-chromedriver"},
+	"psycopg2":     {"libpq5"},
+	"mysqlclient":  {"default-mysql-client"},
+	"redis":        {"redis-server"},
+	"selenium":     {"chromium-browser", "chromium-chromedriver"},
+	"playwright":   {"chromium-browser", "chromium-chromedriver"},
 }
