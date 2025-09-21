@@ -27,7 +27,13 @@
     "step": "build"
    }
   ],
-  "startCommand": "java  $JAVA_OPTS -jar target/*jar"
+  "startCommand": "java  $JAVA_OPTS -jar target/*jar",
+  "variables": {
+   "JAVA_OPTS": "-Xmx1024m -Xms512m -XX:+UseG1GC",
+   "MAVEN_CONFIG": "/root/.m2",
+   "MAVEN_OPTS": "-Xmx1024m -Dfile.encoding=UTF-8",
+   "SPRING_PROFILES_ACTIVE": "production"
+  }
  },
  "steps": [
   {
