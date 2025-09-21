@@ -100,6 +100,19 @@ func (p *PhpProvider) Plan(ctx *generate.GenerateContext) error {
 		if dev := p.getDevStartCmd(ctx); dev != "" {
 			ctx.Deploy.StartCmd = dev
 		}
+		// Add host-specific development command
+		if devHost := p.getDevStartCmdHost(ctx); devHost != "" {
+			ctx.Deploy.StartCmdHost = devHost
+		}
+		// Add development environment variables
+		ctx.Deploy.Variables = p.getPhpDevEnvVars(ctx)
+		// Add required port for web applications
+		if port := p.getDevPort(ctx); port != "" {
+			ctx.Deploy.RequiredPort = port
+		}
+	} else {
+		// Add production environment variables
+		ctx.Deploy.Variables = p.getPhpProdEnvVars(ctx)
 	}
 
 	return nil
@@ -466,11 +479,102 @@ func (p *PhpProvider) StartCommandHelp() string {
 }
 
 func (p *PhpProvider) getDevStartCmd(ctx *generate.GenerateContext) string {
-    if p.usesLaravel(ctx) {
-        return "php artisan serve --host 0.0.0.0 --port ${PORT:-8000}"
-    }
-    if ctx.App.HasMatch("public/index.php") || ctx.App.HasMatch("public") {
-        return "php -S 0.0.0.0:${PORT:-8000} -t public"
-    }
-    return "php -S 0.0.0.0:${PORT:-8000} -t /app"
+	if p.usesLaravel(ctx) {
+		return "php artisan serve --host 0.0.0.0 --port ${PORT:-8000}"
+	}
+	if ctx.App.HasMatch("public/index.php") || ctx.App.HasMatch("public") {
+		return "php -S 0.0.0.0:${PORT:-8000} -t public"
+	}
+	return "php -S 0.0.0.0:${PORT:-8000} -t /app"
+}
+
+// getDevStartCmdHost returns a development-friendly start command for host/local development
+func (p *PhpProvider) getDevStartCmdHost(ctx *generate.GenerateContext) string {
+	if p.usesLaravel(ctx) {
+		return "php artisan serve --host 0.0.0.0 --port 8000"
+	}
+	if ctx.App.HasMatch("public/index.php") || ctx.App.HasMatch("public") {
+		return "php -S 0.0.0.0:8000 -t public"
+	}
+	return "php -S 0.0.0.0:8000 -t ."
+}
+
+// getDevPort returns the appropriate port for development mode based on framework
+func (p *PhpProvider) getDevPort(ctx *generate.GenerateContext) string {
+	// All PHP web applications use port 8000 by default
+	return "8000"
+}
+
+// getPhpDevEnvVars returns development-specific environment variables
+func (p *PhpProvider) getPhpDevEnvVars(ctx *generate.GenerateContext) map[string]string {
+	envVars := map[string]string{
+		"APP_ENV":     "local",
+		"APP_DEBUG":   "true",
+		"APP_LOCALE":  "en",
+		"LOG_CHANNEL": "stderr",
+		"LOG_LEVEL":   "debug",
+	}
+
+	// Framework-specific development settings
+	if p.usesLaravel(ctx) {
+		envVars["APP_KEY"] = "base64:YourAppKeyHere"
+		envVars["DB_CONNECTION"] = "sqlite"
+		envVars["DB_DATABASE"] = ":memory:"
+		envVars["CACHE_DRIVER"] = "array"
+		envVars["SESSION_DRIVER"] = "array"
+		envVars["QUEUE_CONNECTION"] = "sync"
+		envVars["MAIL_MAILER"] = "log"
+		envVars["BROADCAST_DRIVER"] = "log"
+	} else if p.usesSymfony(ctx) {
+		envVars["APP_ENV"] = "dev"
+		envVars["APP_DEBUG"] = "1"
+		envVars["DATABASE_URL"] = "sqlite:///:memory:"
+	} else if p.usesCodeIgniter(ctx) {
+		envVars["CI_ENVIRONMENT"] = "development"
+		envVars["database.default.hostname"] = "localhost"
+		envVars["database.default.database"] = "test"
+	}
+
+	return envVars
+}
+
+// getPhpProdEnvVars returns production-specific environment variables
+func (p *PhpProvider) getPhpProdEnvVars(ctx *generate.GenerateContext) map[string]string {
+	envVars := map[string]string{
+		"APP_ENV":     "production",
+		"APP_DEBUG":   "false",
+		"APP_LOCALE":  "en",
+		"LOG_CHANNEL": "stderr",
+		"LOG_LEVEL":   "error",
+	}
+
+	// Framework-specific production settings
+	if p.usesLaravel(ctx) {
+		envVars["CACHE_DRIVER"] = "file"
+		envVars["SESSION_DRIVER"] = "file"
+		envVars["QUEUE_CONNECTION"] = "sync"
+		envVars["MAIL_MAILER"] = "smtp"
+		envVars["BROADCAST_DRIVER"] = "log"
+	} else if p.usesSymfony(ctx) {
+		envVars["APP_ENV"] = "prod"
+		envVars["APP_DEBUG"] = "0"
+	} else if p.usesCodeIgniter(ctx) {
+		envVars["CI_ENVIRONMENT"] = "production"
+	}
+
+	return envVars
+}
+
+// usesSymfony detects if the project uses Symfony framework
+func (p *PhpProvider) usesSymfony(ctx *generate.GenerateContext) bool {
+	return ctx.App.HasMatch("bin/console") ||
+		ctx.App.HasMatch("config/packages") ||
+		ctx.App.HasMatch("src/Controller")
+}
+
+// usesCodeIgniter detects if the project uses CodeIgniter framework
+func (p *PhpProvider) usesCodeIgniter(ctx *generate.GenerateContext) bool {
+	return ctx.App.HasMatch("application/config") ||
+		ctx.App.HasMatch("system") ||
+		ctx.App.HasMatch("index.php") && ctx.App.HasMatch("application")
 }

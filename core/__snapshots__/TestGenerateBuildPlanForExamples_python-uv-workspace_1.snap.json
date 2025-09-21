@@ -166,7 +166,7 @@
   {
    "commands": [
     {
-     "cmd": "uv sync --locked --no-dev --no-editable"
+     "cmd": ".venv/bin/uv sync --locked --no-dev --no-editable"
     }
    ],
    "inputs": [

@@ -46,7 +46,19 @@
     "step": "build"
    }
   ],
-  "startCommand": "/start-container.sh"
+  "startCommand": "/start-container.sh",
+  "variables": {
+   "APP_DEBUG": "false",
+   "APP_ENV": "production",
+   "APP_LOCALE": "en",
+   "BROADCAST_DRIVER": "log",
+   "CACHE_DRIVER": "file",
+   "LOG_CHANNEL": "stderr",
+   "LOG_LEVEL": "error",
+   "MAIL_MAILER": "smtp",
+   "QUEUE_CONNECTION": "sync",
+   "SESSION_DRIVER": "file"
+  }
  },
  "steps": [
   {

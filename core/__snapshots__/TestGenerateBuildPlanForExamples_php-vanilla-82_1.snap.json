@@ -9,7 +9,14 @@
   "base": {
    "step": "build"
   },
-  "startCommand": "/start-container.sh"
+  "startCommand": "/start-container.sh",
+  "variables": {
+   "APP_DEBUG": "false",
+   "APP_ENV": "production",
+   "APP_LOCALE": "en",
+   "LOG_CHANNEL": "stderr",
+   "LOG_LEVEL": "error"
+  }
  },
  "steps": [
   {
