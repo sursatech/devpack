@@ -135,6 +135,11 @@ func (p *NodeProvider) Plan(ctx *generate.GenerateContext) error {
 				}
 			}
 		}
+
+		// Set required port for development
+		if devPort := p.getDevPort(ctx); devPort != "" {
+			ctx.Deploy.RequiredPort = devPort
+		}
 	}
 
 	// Custom deploy for SPA's (production only). In dev, run the dev server instead.
@@ -558,6 +563,34 @@ func (p *NodeProvider) GetNodeEnvVars(ctx *generate.GenerateContext) map[string]
 		maps.Copy(envVars, p.getAstroEnvVars())
 	}
 
+	// Add framework-specific environment variables for development
+	if ctx.Dev {
+		// Vite and React Router (Vite-based) - allow .sursakit.app subdomains
+		if p.isVite(ctx) || p.isReactRouter(ctx) {
+			envVars["__VITE_ADDITIONAL_SERVER_ALLOWED_HOSTS"] = ".sursakit.app"
+		}
+
+		// Create React App - allow external hosts
+		if p.isCRA(ctx) {
+			envVars["HOST"] = "0.0.0.0"
+		}
+
+		// Angular - allow external hosts
+		if p.isAngular(ctx) {
+			envVars["NG_CLI_ANALYTICS"] = "false"
+		}
+
+		// Next.js - allow external hosts
+		if p.isNext() {
+			envVars["HOSTNAME"] = "0.0.0.0"
+		}
+
+		// Nuxt - allow external hosts
+		if p.isNuxt() {
+			envVars["NUXT_HOST"] = "0.0.0.0"
+		}
+	}
+
 	return envVars
 }
 
@@ -756,4 +789,36 @@ func (p *NodeProvider) isRemix() bool {
 
 func (p *NodeProvider) isTanstackStart() bool {
 	return p.hasDependency("@tanstack/react-start")
+}
+
+// getDevPort returns the default development port for the detected framework
+func (p *NodeProvider) getDevPort(ctx *generate.GenerateContext) string {
+	// Check for SPA frameworks first
+	if p.isSPA(ctx) {
+		if p.isAngular(ctx) {
+			return "4200" // Angular default port
+		} else if p.isVite(ctx) || p.isReactRouter(ctx) {
+			return "5173" // Vite default port
+		} else if p.isAstro(ctx) {
+			return "4321" // Astro default port
+		} else if p.isCRA(ctx) {
+			return "3000" // Create React App default port
+		}
+	}
+
+	// Check for server-side frameworks
+	if p.isNext() {
+		return "3000" // Next.js default port
+	} else if p.isNuxt() {
+		return "3000" // Nuxt default port
+	} else if p.isRemix() {
+		return "3000" // Remix default port
+	} else if p.isTanstackStart() {
+		return "3000" // Tanstack Start default port
+	} else if p.isVite(ctx) {
+		return "5173" // Vite default port
+	}
+
+	// Default Node.js API port
+	return "3000"
 }
