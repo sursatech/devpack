@@ -30,7 +30,7 @@
    },
    {
     "include": [
-     ".venv"
+     "/app/.venv"
     ],
     "step": "build"
    },
@@ -45,7 +45,7 @@
    }
   ],
   "paths": [
-   ".venv/bin"
+   "/app/.venv/bin"
   ],
   "startCommand": "/app/.venv/bin/python app.py",
   "variables": {
@@ -122,13 +122,10 @@
      "src": "requirements.txt"
     },
     {
-     "cmd": "python -m venv .venv"
+     "cmd": "python -m venv /app/.venv"
     },
     {
-     "cmd": ".venv/bin/pip install -r requirements.txt"
-    },
-    {
-     "path": ".venv/bin"
+     "cmd": "/app/.venv/bin/pip install -r requirements.txt"
     }
    ],
    "inputs": [
@@ -145,7 +142,7 @@
     "PYTHONFAULTHANDLER": "1",
     "PYTHONHASHSEED": "random",
     "PYTHONUNBUFFERED": "1",
-    "VIRTUAL_ENV": ".venv"
+    "VIRTUAL_ENV": "/app/.venv"
    }
   },
   {
