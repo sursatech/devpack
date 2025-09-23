@@ -31,7 +31,7 @@
    },
    {
     "include": [
-     "/app/.venv"
+     ".venv"
     ],
     "step": "build"
    },
@@ -46,7 +46,7 @@
    }
   ],
   "paths": [
-   "/app/.venv/bin"
+   ".venv/bin"
   ],
   "startCommand": "python-uv-packaged",
   "variables": {
@@ -133,13 +133,16 @@
      "path": "/root/.local/bin"
     },
     {
-     "cmd": "python -m venv /app/.venv"
+     "path": ".venv/bin"
     },
     {
-     "cmd": "/app/.venv/bin/pip install uv"
+     "cmd": "python -m venv .venv"
     },
     {
-     "cmd": "/app/.venv/bin/uv sync --locked --no-dev --no-install-project"
+     "cmd": ".venv/bin/pip install uv"
+    },
+    {
+     "cmd": ".venv/bin/uv sync --locked --no-dev --no-install-project"
     }
    ],
    "inputs": [
@@ -159,13 +162,13 @@
     "UV_COMPILE_BYTECODE": "1",
     "UV_LINK_MODE": "copy",
     "UV_PYTHON_DOWNLOADS": "never",
-    "VIRTUAL_ENV": "/app/.venv"
+    "VIRTUAL_ENV": ".venv"
    }
   },
   {
    "commands": [
     {
-     "cmd": "/app/.venv/bin/uv sync --locked --no-dev --no-editable"
+     "cmd": ".venv/bin/uv sync --locked --no-dev --no-editable"
     }
    ],
    "inputs": [

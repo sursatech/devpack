@@ -26,7 +26,7 @@
    },
    {
     "include": [
-     "/app/.venv"
+     ".venv"
     ],
     "step": "build"
    },
@@ -41,7 +41,7 @@
    }
   ],
   "paths": [
-   "/app/.venv/bin"
+   ".venv/bin"
   ],
   "startCommand": "poetry run python main.py",
   "variables": {
@@ -121,13 +121,16 @@
      "path": "/root/.local/bin"
     },
     {
-     "cmd": "python -m venv /app/.venv"
+     "path": ".venv/bin"
     },
     {
-     "cmd": "/app/.venv/bin/pip install poetry"
+     "cmd": "python -m venv .venv"
     },
     {
-     "cmd": "/app/.venv/bin/poetry install --no-interaction --no-ansi --only main --no-root"
+     "cmd": ".venv/bin/pip install poetry"
+    },
+    {
+     "cmd": ".venv/bin/poetry install --no-interaction --no-ansi --only main --no-root"
     }
    ],
    "inputs": [
@@ -140,12 +143,12 @@
     "PIP_DEFAULT_TIMEOUT": "100",
     "PIP_DISABLE_PIP_VERSION_CHECK": "1",
     "POETRY_VIRTUALENVS_IN_PROJECT": "true",
-    "POETRY_VIRTUALENVS_PATH": "/app/.venv",
+    "POETRY_VIRTUALENVS_PATH": ".venv",
     "PYTHONDONTWRITEBYTECODE": "1",
     "PYTHONFAULTHANDLER": "1",
     "PYTHONHASHSEED": "random",
     "PYTHONUNBUFFERED": "1",
-    "VIRTUAL_ENV": "/app/.venv"
+    "VIRTUAL_ENV": ".venv"
    }
   },
   {

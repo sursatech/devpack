@@ -26,7 +26,7 @@
    },
    {
     "include": [
-     "/app/.venv"
+     ".venv"
     ],
     "step": "build"
    },
@@ -41,7 +41,7 @@
    }
   ],
   "paths": [
-   "/app/.venv/bin"
+   ".venv/bin"
   ],
   "startCommand": "/app/.venv/bin/python main.py",
   "variables": {
@@ -113,7 +113,7 @@
      "path": "/root/.local/bin"
     },
     {
-     "path": "/app/.venv/bin"
+     "path": ".venv/bin"
     },
     {
      "dest": "Pipfile",
@@ -124,13 +124,13 @@
      "src": "Pipfile.lock"
     },
     {
-     "cmd": "python -m venv /app/.venv"
+     "cmd": "python -m venv .venv"
     },
     {
-     "cmd": "/app/.venv/bin/pip install pipenv"
+     "cmd": ".venv/bin/pip install pipenv"
     },
     {
-     "cmd": "/app/.venv/bin/pipenv install --deploy --ignore-pipfile"
+     "cmd": ".venv/bin/pipenv install --deploy --ignore-pipfile"
     }
    ],
    "inputs": [

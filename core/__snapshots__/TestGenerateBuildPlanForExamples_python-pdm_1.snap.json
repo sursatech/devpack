@@ -26,7 +26,7 @@
    },
    {
     "include": [
-     "/app/.venv"
+     ".venv"
     ],
     "step": "build"
    },
@@ -41,7 +41,7 @@
    }
   ],
   "paths": [
-   "/app/.venv/bin"
+   ".venv/bin"
   ],
   "startCommand": "/app/.venv/bin/python main.py",
   "variables": {
@@ -122,13 +122,16 @@
      "path": "/root/.local/bin"
     },
     {
-     "cmd": "python -m venv /app/.venv"
+     "path": ".venv/bin"
     },
     {
-     "cmd": "/app/.venv/bin/pip install pdm"
+     "cmd": "python -m venv .venv"
     },
     {
-     "cmd": "/app/.venv/bin/pdm install --check --prod --no-editable"
+     "cmd": ".venv/bin/pip install pdm"
+    },
+    {
+     "cmd": ".venv/bin/pdm install --check --prod --no-editable"
     }
    ],
    "inputs": [
