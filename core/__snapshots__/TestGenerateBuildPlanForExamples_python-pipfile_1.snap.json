@@ -113,7 +113,7 @@
      "path": "/root/.local/bin"
     },
     {
-     "path": ".venv/bin"
+     "path": "/app/.venv/bin"
     },
     {
      "dest": "Pipfile",
@@ -124,13 +124,13 @@
      "src": "Pipfile.lock"
     },
     {
-     "cmd": "python -m venv .venv"
+     "cmd": "python -m venv /app/.venv"
     },
     {
-     "cmd": ".venv/bin/pip install pipenv"
+     "cmd": "/app/.venv/bin/pip install pipenv"
     },
     {
-     "cmd": ".venv/bin/pipenv install --deploy --ignore-pipfile"
+     "cmd": "/app/.venv/bin/pipenv install --deploy --ignore-pipfile"
     }
    ],
    "inputs": [

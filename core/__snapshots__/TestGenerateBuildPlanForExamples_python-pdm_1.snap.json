@@ -122,16 +122,16 @@
      "path": "/root/.local/bin"
     },
     {
-     "path": ".venv/bin"
+     "path": "/app/.venv/bin"
     },
     {
-     "cmd": "python -m venv .venv"
+     "cmd": "python -m venv /app/.venv"
     },
     {
-     "cmd": ".venv/bin/pip install pdm"
+     "cmd": "/app/.venv/bin/pip install pdm"
     },
     {
-     "cmd": ".venv/bin/pdm install --check --prod --no-editable"
+     "cmd": "/app/.venv/bin/pdm install --check --prod --no-editable"
     }
    ],
    "inputs": [

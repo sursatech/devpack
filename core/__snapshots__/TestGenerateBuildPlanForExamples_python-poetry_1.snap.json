@@ -121,16 +121,16 @@
      "path": "/root/.local/bin"
     },
     {
-     "path": ".venv/bin"
+     "path": "/app/.venv/bin"
     },
     {
-     "cmd": "python -m venv .venv"
+     "cmd": "python -m venv /app/.venv"
     },
     {
-     "cmd": ".venv/bin/pip install poetry"
+     "cmd": "/app/.venv/bin/pip install poetry"
     },
     {
-     "cmd": ".venv/bin/poetry install --no-interaction --no-ansi --only main --no-root"
+     "cmd": "/app/.venv/bin/poetry install --no-interaction --no-ansi --only main --no-root"
     }
    ],
    "inputs": [

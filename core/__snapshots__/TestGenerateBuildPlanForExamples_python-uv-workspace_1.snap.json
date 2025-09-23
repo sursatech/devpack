@@ -125,16 +125,16 @@
      "path": "/root/.local/bin"
     },
     {
-     "path": ".venv/bin"
+     "path": "/app/.venv/bin"
     },
     {
-     "cmd": "python -m venv .venv"
+     "cmd": "python -m venv /app/.venv"
     },
     {
-     "cmd": ".venv/bin/pip install uv"
+     "cmd": "/app/.venv/bin/pip install uv"
     },
     {
-     "cmd": ".venv/bin/uv sync --locked --no-dev --no-install-project"
+     "cmd": "/app/.venv/bin/uv sync --locked --no-dev --no-install-project"
     }
    ],
    "inputs": [

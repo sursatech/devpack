@@ -451,16 +451,16 @@ func (p *PythonProvider) InstallUv(ctx *generate.GenerateContext, install *gener
 	p.copyInstallFiles(ctx, install)
 	install.AddCommands([]plan.Command{
 		plan.NewPathCommand(LOCAL_BIN_PATH),
-		plan.NewPathCommand(venvPath + "/bin"),
+		plan.NewPathCommand(p.GetVenvPath(ctx) + "/bin"), // Use absolute path
 		// Create virtual environment
-		plan.NewExecCommand(fmt.Sprintf("python -m venv %s", venvPath)),
+		plan.NewExecCommand(fmt.Sprintf("python -m venv %s", p.GetVenvPath(ctx))), // Use absolute path
 		// Install uv in the virtual environment
-		plan.NewExecCommand(fmt.Sprintf("%s/bin/pip install uv", venvPath)),
+		plan.NewExecCommand(fmt.Sprintf("%s/bin/pip install uv", p.GetVenvPath(ctx))), // Use absolute path
 		// Sync dependencies with uv
 		// if we exclude workspace packages, uv.lock will fail the frozen test and the user will get an error
 		// to avoid this, we (a) detect if workspace packages are required (b) if they aren't, we don't include project
 		// source in order to optimize layer caching (c) install project in the build phase.
-		plan.NewExecCommand(fmt.Sprintf("%s/bin/uv sync --locked --no-dev --no-install-project", venvPath)),
+		plan.NewExecCommand(fmt.Sprintf("%s/bin/uv sync --locked --no-dev --no-install-project", p.GetVenvPath(ctx))), // Use absolute path
 	})
 
 	return []string{venvPath}
@@ -480,7 +480,7 @@ func (p *PythonProvider) InstallPipenv(ctx *generate.GenerateContext, install *g
 
 	install.AddCommands([]plan.Command{
 		plan.NewPathCommand(LOCAL_BIN_PATH),
-		plan.NewPathCommand(venvPath + "/bin"),
+		plan.NewPathCommand(p.GetVenvPath(ctx) + "/bin"), // Use absolute path
 	})
 
 	if ctx.App.HasMatch("Pipfile.lock") {
@@ -488,21 +488,21 @@ func (p *PythonProvider) InstallPipenv(ctx *generate.GenerateContext, install *g
 			plan.NewCopyCommand("Pipfile"),
 			plan.NewCopyCommand("Pipfile.lock"),
 			// Create virtual environment
-			plan.NewExecCommand(fmt.Sprintf("python -m venv %s", venvPath)),
+			plan.NewExecCommand(fmt.Sprintf("python -m venv %s", p.GetVenvPath(ctx))), // Use absolute path
 			// Install pipenv in the virtual environment
-			plan.NewExecCommand(fmt.Sprintf("%s/bin/pip install pipenv", venvPath)),
+			plan.NewExecCommand(fmt.Sprintf("%s/bin/pip install pipenv", p.GetVenvPath(ctx))), // Use absolute path
 			// Install dependencies with pipenv
-			plan.NewExecCommand(fmt.Sprintf("%s/bin/pipenv install --deploy --ignore-pipfile", venvPath)),
+			plan.NewExecCommand(fmt.Sprintf("%s/bin/pipenv install --deploy --ignore-pipfile", p.GetVenvPath(ctx))), // Use absolute path
 		})
 	} else {
 		install.AddCommands([]plan.Command{
 			plan.NewCopyCommand("Pipfile"),
 			// Create virtual environment
-			plan.NewExecCommand(fmt.Sprintf("python -m venv %s", venvPath)),
+			plan.NewExecCommand(fmt.Sprintf("python -m venv %s", p.GetVenvPath(ctx))), // Use absolute path
 			// Install pipenv in the virtual environment
-			plan.NewExecCommand(fmt.Sprintf("%s/bin/pip install pipenv", venvPath)),
+			plan.NewExecCommand(fmt.Sprintf("%s/bin/pip install pipenv", p.GetVenvPath(ctx))), // Use absolute path
 			// Install dependencies with pipenv
-			plan.NewExecCommand(fmt.Sprintf("%s/bin/pipenv install --skip-lock", venvPath)),
+			plan.NewExecCommand(fmt.Sprintf("%s/bin/pipenv install --skip-lock", p.GetVenvPath(ctx))), // Use absolute path
 		})
 	}
 
@@ -522,13 +522,13 @@ func (p *PythonProvider) InstallPDM(ctx *generate.GenerateContext, install *gene
 	p.copyInstallFiles(ctx, install)
 	install.AddCommands([]plan.Command{
 		plan.NewPathCommand(LOCAL_BIN_PATH),
-		plan.NewPathCommand(venvPath + "/bin"),
+		plan.NewPathCommand(p.GetVenvPath(ctx) + "/bin"), // Use absolute path
 		// Create virtual environment
-		plan.NewExecCommand(fmt.Sprintf("python -m venv %s", venvPath)),
+		plan.NewExecCommand(fmt.Sprintf("python -m venv %s", p.GetVenvPath(ctx))), // Use absolute path
 		// Install pdm in the virtual environment
-		plan.NewExecCommand(fmt.Sprintf("%s/bin/pip install pdm", venvPath)),
+		plan.NewExecCommand(fmt.Sprintf("%s/bin/pip install pdm", p.GetVenvPath(ctx))), // Use absolute path
 		// Install dependencies with pdm
-		plan.NewExecCommand(fmt.Sprintf("%s/bin/pdm install --check --prod --no-editable", venvPath)),
+		plan.NewExecCommand(fmt.Sprintf("%s/bin/pdm install --check --prod --no-editable", p.GetVenvPath(ctx))), // Use absolute path
 	})
 
 	return []string{venvPath}
@@ -548,13 +548,13 @@ func (p *PythonProvider) InstallPoetry(ctx *generate.GenerateContext, install *g
 	p.copyInstallFiles(ctx, install)
 	install.AddCommands([]plan.Command{
 		plan.NewPathCommand(LOCAL_BIN_PATH),
-		plan.NewPathCommand(venvPath + "/bin"),
+		plan.NewPathCommand(p.GetVenvPath(ctx) + "/bin"), // Use absolute path
 		// Create virtual environment
-		plan.NewExecCommand(fmt.Sprintf("python -m venv %s", venvPath)),
+		plan.NewExecCommand(fmt.Sprintf("python -m venv %s", p.GetVenvPath(ctx))), // Use absolute path
 		// Install poetry in the virtual environment
-		plan.NewExecCommand(fmt.Sprintf("%s/bin/pip install poetry", venvPath)),
+		plan.NewExecCommand(fmt.Sprintf("%s/bin/pip install poetry", p.GetVenvPath(ctx))), // Use absolute path
 		// Install dependencies with poetry
-		plan.NewExecCommand(fmt.Sprintf("%s/bin/poetry install --no-interaction --no-ansi --only main --no-root", venvPath)),
+		plan.NewExecCommand(fmt.Sprintf("%s/bin/poetry install --no-interaction --no-ansi --only main --no-root", p.GetVenvPath(ctx))), // Use absolute path
 	})
 
 	return []string{venvPath}
@@ -576,9 +576,9 @@ func (p *PythonProvider) InstallPip(ctx *generate.GenerateContext, install *gene
 
 	// Create virtual environment and install dependencies
 	install.AddCommands([]plan.Command{
-		plan.NewExecCommand(fmt.Sprintf("python -m venv %s", venvPath)),
-		plan.NewExecCommand(fmt.Sprintf("%s/bin/pip install -r requirements.txt", venvPath)),
-		plan.NewPathCommand(venvPath + "/bin"),
+		plan.NewExecCommand(fmt.Sprintf("python -m venv %s", p.GetVenvPath(ctx))),                      // Use absolute path
+		plan.NewExecCommand(fmt.Sprintf("%s/bin/pip install -r requirements.txt", p.GetVenvPath(ctx))), // Use absolute path
+		plan.NewPathCommand(p.GetVenvPath(ctx) + "/bin"),                                               // Use absolute path
 	})
 
 	return []string{venvPath}
