@@ -34,9 +34,9 @@ func (p *PythonProvider) GetVenvPathForHost(ctx *generate.GenerateContext) strin
 
 // GetVenvPathForInstall returns the appropriate virtual environment path for install commands
 func (p *PythonProvider) GetVenvPathForInstall(ctx *generate.GenerateContext) string {
-	// For install commands, use absolute path in container environment
-	// This ensures the virtual environment is created in the right location
-	return p.GetVenvPath(ctx)
+	// For install commands, always use .venv (relative path) for local development
+	// This ensures install commands work on local machines
+	return ".venv"
 }
 
 type PythonProvider struct{}
@@ -105,8 +105,8 @@ func (p *PythonProvider) Plan(ctx *generate.GenerateContext) error {
 	if ctx.Deploy.Paths == nil {
 		ctx.Deploy.Paths = []string{}
 	}
-	// For deploy, always use absolute path to ensure correct PATH in container
-	venvPath := p.GetVenvPath(ctx)
+	// Use the same venv path as install commands for consistency
+	venvPath := p.GetVenvPathForInstall(ctx)
 	ctx.Deploy.Paths = append(ctx.Deploy.Paths, venvPath+"/bin")
 
 	// In dev mode, prefer a development server command when available
@@ -444,7 +444,7 @@ func (p *PythonProvider) InstallUv(ctx *generate.GenerateContext, install *gener
 		"UV_LINK_MODE":        "copy",
 		"UV_CACHE_DIR":        UV_CACHE_DIR,
 		"UV_PYTHON_DOWNLOADS": "never",
-		"VIRTUAL_ENV":         p.GetVenvPath(ctx), // Use absolute path for VIRTUAL_ENV
+		"VIRTUAL_ENV":         venvPath,
 	})
 
 	install.AddEnvVars(p.GetPythonEnvVars(ctx))
@@ -452,6 +452,7 @@ func (p *PythonProvider) InstallUv(ctx *generate.GenerateContext, install *gener
 	p.copyInstallFiles(ctx, install)
 	install.AddCommands([]plan.Command{
 		plan.NewPathCommand(LOCAL_BIN_PATH),
+		plan.NewPathCommand(venvPath + "/bin"),
 		// Create virtual environment
 		plan.NewExecCommand(fmt.Sprintf("python -m venv %s", venvPath)),
 		// Install uv in the virtual environment
@@ -520,6 +521,7 @@ func (p *PythonProvider) InstallPDM(ctx *generate.GenerateContext, install *gene
 	p.copyInstallFiles(ctx, install)
 	install.AddCommands([]plan.Command{
 		plan.NewPathCommand(LOCAL_BIN_PATH),
+		plan.NewPathCommand(venvPath + "/bin"),
 		// Create virtual environment
 		plan.NewExecCommand(fmt.Sprintf("python -m venv %s", venvPath)),
 		// Install pdm in the virtual environment
@@ -537,7 +539,7 @@ func (p *PythonProvider) InstallPoetry(ctx *generate.GenerateContext, install *g
 	venvPath := p.GetVenvPathForInstall(ctx)
 	install.AddEnvVars(p.GetPythonEnvVars(ctx))
 	install.AddEnvVars(map[string]string{
-		"VIRTUAL_ENV":                   p.GetVenvPath(ctx), // Use absolute path for VIRTUAL_ENV
+		"VIRTUAL_ENV":                   venvPath,
 		"POETRY_VIRTUALENVS_PATH":       venvPath,
 		"POETRY_VIRTUALENVS_IN_PROJECT": "true",
 	})
@@ -545,6 +547,7 @@ func (p *PythonProvider) InstallPoetry(ctx *generate.GenerateContext, install *g
 	p.copyInstallFiles(ctx, install)
 	install.AddCommands([]plan.Command{
 		plan.NewPathCommand(LOCAL_BIN_PATH),
+		plan.NewPathCommand(venvPath + "/bin"),
 		// Create virtual environment
 		plan.NewExecCommand(fmt.Sprintf("python -m venv %s", venvPath)),
 		// Install poetry in the virtual environment
@@ -564,7 +567,7 @@ func (p *PythonProvider) InstallPip(ctx *generate.GenerateContext, install *gene
 	install.AddEnvVars(p.GetPythonEnvVars(ctx))
 	install.AddEnvVars(map[string]string{
 		"PIP_CACHE_DIR": PIP_CACHE_DIR,
-		"VIRTUAL_ENV":   p.GetVenvPath(ctx), // Use absolute path for VIRTUAL_ENV
+		"VIRTUAL_ENV":   venvPath,
 	})
 
 	// Copy requirements.txt before installing
@@ -574,6 +577,7 @@ func (p *PythonProvider) InstallPip(ctx *generate.GenerateContext, install *gene
 	install.AddCommands([]plan.Command{
 		plan.NewExecCommand(fmt.Sprintf("python -m venv %s", venvPath)),
 		plan.NewExecCommand(fmt.Sprintf("%s/bin/pip install -r requirements.txt", venvPath)),
+		plan.NewPathCommand(venvPath + "/bin"),
 	})
 
 	return []string{venvPath}
