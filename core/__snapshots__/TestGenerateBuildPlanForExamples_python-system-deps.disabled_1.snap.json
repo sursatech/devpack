@@ -149,7 +149,7 @@
     "PYTHONFAULTHANDLER": "1",
     "PYTHONHASHSEED": "random",
     "PYTHONUNBUFFERED": "1",
-    "VIRTUAL_ENV": ".venv"
+    "VIRTUAL_ENV": "/app/.venv"
    }
   },
   {

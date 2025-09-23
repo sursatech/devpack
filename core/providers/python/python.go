@@ -74,10 +74,9 @@ func (p *PythonProvider) Plan(ctx *generate.GenerateContext) error {
 		installOutputs = p.InstallPip(ctx, install)
 	} else if p.hasPyproject(ctx) && p.hasUv(ctx) {
 		installOutputs = p.InstallUv(ctx, install)
-		venvPath := p.GetVenvPathForInstall(ctx)
 		build.AddCommands([]plan.Command{
 			// the project is not installed during the install phase, because it requires the project source
-			plan.NewExecCommand(fmt.Sprintf("%s/bin/uv sync --locked --no-dev --no-editable", venvPath)),
+			plan.NewExecCommand(fmt.Sprintf("%s/bin/uv sync --locked --no-dev --no-editable", p.GetVenvPath(ctx))),
 		})
 	} else if p.hasPyproject(ctx) && p.hasPoetry(ctx) {
 		installOutputs = p.InstallPoetry(ctx, install)
@@ -444,7 +443,7 @@ func (p *PythonProvider) InstallUv(ctx *generate.GenerateContext, install *gener
 		"UV_LINK_MODE":        "copy",
 		"UV_CACHE_DIR":        UV_CACHE_DIR,
 		"UV_PYTHON_DOWNLOADS": "never",
-		"VIRTUAL_ENV":         venvPath,
+		"VIRTUAL_ENV":         p.GetVenvPath(ctx), // Use absolute path for VIRTUAL_ENV
 	})
 
 	install.AddEnvVars(p.GetPythonEnvVars(ctx))
@@ -476,6 +475,7 @@ func (p *PythonProvider) InstallPipenv(ctx *generate.GenerateContext, install *g
 		"PIPENV_CHECK_UPDATE":       "false",
 		"PIPENV_VENV_IN_PROJECT":    "1",
 		"PIPENV_IGNORE_VIRTUALENVS": "1",
+		"VIRTUAL_ENV":               p.GetVenvPath(ctx), // Use absolute path for VIRTUAL_ENV
 	})
 
 	install.AddCommands([]plan.Command{
@@ -516,6 +516,7 @@ func (p *PythonProvider) InstallPDM(ctx *generate.GenerateContext, install *gene
 	install.AddEnvVars(p.GetPythonEnvVars(ctx))
 	install.AddEnvVars(map[string]string{
 		"PDM_CHECK_UPDATE": "false",
+		"VIRTUAL_ENV":      p.GetVenvPath(ctx), // Use absolute path for VIRTUAL_ENV
 	})
 
 	p.copyInstallFiles(ctx, install)
@@ -539,8 +540,8 @@ func (p *PythonProvider) InstallPoetry(ctx *generate.GenerateContext, install *g
 	venvPath := p.GetVenvPathForInstall(ctx)
 	install.AddEnvVars(p.GetPythonEnvVars(ctx))
 	install.AddEnvVars(map[string]string{
-		"VIRTUAL_ENV":                   venvPath,
-		"POETRY_VIRTUALENVS_PATH":       venvPath,
+		"VIRTUAL_ENV":                   p.GetVenvPath(ctx), // Use absolute path for VIRTUAL_ENV
+		"POETRY_VIRTUALENVS_PATH":       p.GetVenvPath(ctx), // Use absolute path for POETRY_VIRTUALENVS_PATH
 		"POETRY_VIRTUALENVS_IN_PROJECT": "true",
 	})
 
@@ -567,7 +568,7 @@ func (p *PythonProvider) InstallPip(ctx *generate.GenerateContext, install *gene
 	install.AddEnvVars(p.GetPythonEnvVars(ctx))
 	install.AddEnvVars(map[string]string{
 		"PIP_CACHE_DIR": PIP_CACHE_DIR,
-		"VIRTUAL_ENV":   venvPath,
+		"VIRTUAL_ENV":   p.GetVenvPath(ctx), // Use absolute path for VIRTUAL_ENV
 	})
 
 	// Copy requirements.txt before installing
