@@ -41,7 +41,7 @@
    }
   ],
   "paths": [
-   ".venv/bin"
+   "/app/.venv/bin"
   ],
   "startCommand": "poetry run python main.py",
   "variables": {

@@ -45,7 +45,7 @@
    }
   ],
   "paths": [
-   ".venv/bin"
+   "/app/.venv/bin"
   ],
   "startCommand": "/app/.venv/bin/python app.py",
   "variables": {

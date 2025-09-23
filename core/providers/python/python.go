@@ -104,9 +104,8 @@ func (p *PythonProvider) Plan(ctx *generate.GenerateContext) error {
 	if ctx.Deploy.Paths == nil {
 		ctx.Deploy.Paths = []string{}
 	}
-	// Use the same venv path as install commands for consistency
-	venvPath := p.GetVenvPathForInstall(ctx)
-	ctx.Deploy.Paths = append(ctx.Deploy.Paths, venvPath+"/bin")
+	// Use absolute path for deploy step to ensure correct PATH in container
+	ctx.Deploy.Paths = append(ctx.Deploy.Paths, p.GetVenvPath(ctx)+"/bin")
 
 	// In dev mode, prefer a development server command when available
 	if ctx.Dev {
@@ -128,7 +127,7 @@ func (p *PythonProvider) Plan(ctx *generate.GenerateContext) error {
 		installArtifacts,
 		plan.NewStepLayer(build.Name(), plan.Filter{
 			Include: []string{"."},
-			Exclude: []string{strings.TrimPrefix(venvPath, "/app/")},
+			Exclude: []string{strings.TrimPrefix(p.GetVenvPath(ctx), "/app/")},
 		}),
 	})
 
