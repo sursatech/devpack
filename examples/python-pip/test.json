@@ -1,0 +1,4 @@
+{
+  "expectedOutput": "Hello from Python pip!",
+  "expectedPort": 3333
+}
