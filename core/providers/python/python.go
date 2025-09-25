@@ -188,7 +188,7 @@ func (p *PythonProvider) GetDevStartCommand(ctx *generate.GenerateContext) strin
 		if hasPoetry {
 			return "poetry run python manage.py runserver 0.0.0.0:8000"
 		}
-		venvPath := p.GetVenvPath(ctx)
+		venvPath := p.GetVenvPathForHost(ctx)
 		return fmt.Sprintf("%s/bin/python manage.py runserver 0.0.0.0:8000", venvPath)
 	}
 
@@ -200,7 +200,7 @@ func (p *PythonProvider) GetDevStartCommand(ctx *generate.GenerateContext) strin
 		if hasPoetry {
 			return "poetry run uvicorn main:app --reload --host 0.0.0.0 --port 8000"
 		}
-		venvPath := p.GetVenvPath(ctx)
+		venvPath := p.GetVenvPathForHost(ctx)
 		return fmt.Sprintf("%s/bin/uvicorn main:app --reload --host 0.0.0.0 --port 8000", venvPath)
 	}
 
@@ -209,7 +209,7 @@ func (p *PythonProvider) GetDevStartCommand(ctx *generate.GenerateContext) strin
 		if hasPoetry {
 			return "poetry run streamlit run main.py --server.address 0.0.0.0 --server.port 8501"
 		}
-		venvPath := p.GetVenvPath(ctx)
+		venvPath := p.GetVenvPathForHost(ctx)
 		return fmt.Sprintf("%s/bin/streamlit run main.py --server.address 0.0.0.0 --server.port 8501", venvPath)
 	}
 
@@ -218,7 +218,7 @@ func (p *PythonProvider) GetDevStartCommand(ctx *generate.GenerateContext) strin
 		if hasPoetry {
 			return "poetry run python main.py --server-name 0.0.0.0 --server-port 7860"
 		}
-		venvPath := p.GetVenvPath(ctx)
+		venvPath := p.GetVenvPathForHost(ctx)
 		return fmt.Sprintf("%s/bin/python main.py --server-name 0.0.0.0 --server-port 7860", venvPath)
 	}
 
@@ -227,7 +227,7 @@ func (p *PythonProvider) GetDevStartCommand(ctx *generate.GenerateContext) strin
 		if hasPoetry {
 			return "poetry run jupyter lab --ip 0.0.0.0 --port 8888 --no-browser --allow-root"
 		}
-		venvPath := p.GetVenvPath(ctx)
+		venvPath := p.GetVenvPathForHost(ctx)
 		return fmt.Sprintf("%s/bin/jupyter lab --ip 0.0.0.0 --port 8888 --no-browser --allow-root", venvPath)
 	}
 
@@ -239,7 +239,7 @@ func (p *PythonProvider) GetDevStartCommand(ctx *generate.GenerateContext) strin
 			}
 			return "poetry run flask run --host 0.0.0.0 --port 5000"
 		}
-		venvPath := p.GetVenvPath(ctx)
+		venvPath := p.GetVenvPathForHost(ctx)
 		if mainPythonFile != "" {
 			return fmt.Sprintf("%s/bin/flask --app %s run --host 0.0.0.0 --port 5000", venvPath, mainPythonFile)
 		}
@@ -250,7 +250,7 @@ func (p *PythonProvider) GetDevStartCommand(ctx *generate.GenerateContext) strin
 		if hasPoetry {
 			return fmt.Sprintf("poetry run python %s", mainPythonFile)
 		}
-		venvPath := p.GetVenvPath(ctx)
+		venvPath := p.GetVenvPathForHost(ctx)
 		return fmt.Sprintf("%s/bin/python %s", venvPath, mainPythonFile)
 	}
 

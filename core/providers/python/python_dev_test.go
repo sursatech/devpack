@@ -24,7 +24,7 @@ func TestPython_Django_Dev_UsesRunserver(t *testing.T) {
 
     require.Contains(t, ctx.Deploy.StartCmd, "manage.py runserver")
 	require.Contains(t, ctx.Deploy.StartCmd, "0.0.0.0:8000")
-    require.NotEqual(t, ctx.Deploy.StartCmd, ctx.Deploy.StartCmdHost) // Dev mode should have different host command
+    require.Equal(t, ctx.Deploy.StartCmd, ctx.Deploy.StartCmdHost) // Dev mode should use same command for both
     require.Equal(t, "8000", ctx.Deploy.RequiredPort)
 }
 
@@ -46,7 +46,7 @@ func TestPython_Flask_Dev_UsesFlaskRun(t *testing.T) {
     require.Contains(t, ctx.Deploy.StartCmd, "flask")
     require.Contains(t, ctx.Deploy.StartCmd, "--host 0.0.0.0")
     require.Contains(t, ctx.Deploy.StartCmd, "--port 5000")
-    require.NotEqual(t, ctx.Deploy.StartCmd, ctx.Deploy.StartCmdHost) // Dev mode should have different host command
+    require.Equal(t, ctx.Deploy.StartCmd, ctx.Deploy.StartCmdHost) // Dev mode should use same command for both
     require.Equal(t, "5000", ctx.Deploy.RequiredPort)
 }
 
@@ -59,12 +59,12 @@ func TestPython_GetDevStartCommand(t *testing.T) {
         {
             name:     "Django project",
             path:     "../../../examples/python-django",
-		expected: "/app/.venv/bin/python manage.py runserver 0.0.0.0:8000",
+		expected: ".venv/bin/python manage.py runserver 0.0.0.0:8000",
         },
         {
             name:     "Flask project",
             path:     "../../../examples/python-flask",
-            expected: "/app/.venv/bin/flask --app main.py run --host 0.0.0.0 --port 5000",
+            expected: ".venv/bin/flask --app main.py run --host 0.0.0.0 --port 5000",
         },
         {
             name:     "Poetry Flask project",
