@@ -31,13 +31,13 @@
    },
    {
     "include": [
-     ".venv"
+     "/app/.venv"
     ],
     "step": "build"
    },
    {
     "exclude": [
-     ".venv"
+     "/app/.venv"
     ],
     "include": [
      "."

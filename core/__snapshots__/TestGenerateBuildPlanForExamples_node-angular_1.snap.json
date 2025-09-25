@@ -92,6 +92,14 @@
      "src": "package.json"
     },
     {
+     "dest": ".angular/cache/19.2.0/node-angular/vite/deps/package.json",
+     "src": ".angular/cache/19.2.0/node-angular/vite/deps/package.json"
+    },
+    {
+     "dest": ".angular/cache/19.2.0/node-angular/vite/deps_ssr/package.json",
+     "src": ".angular/cache/19.2.0/node-angular/vite/deps_ssr/package.json"
+    },
+    {
      "dest": "package-lock.json",
      "src": "package-lock.json"
     },
