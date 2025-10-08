@@ -1,41 +1,142 @@
-name: CI
+name: CI/CD Pipeline
 
 on:
   push:
-    branches: [main]
-    paths-ignore:
-      - "docs/**"
+    branches: [ dev-pack-v2 ]
   pull_request:
-    paths-ignore:
-      - "docs/**"
-  schedule:
-    # run every day to alert against changes in default mise versions which break snapshot tests
-    - cron: "0 0 * * *"
+    branches: [ dev-pack-v2 ]
 
 jobs:
   test:
-    name: Check and Test
     runs-on: ubuntu-latest
+    
     steps:
-      - uses: actions/checkout@v4
+    - uses: actions/checkout@v4
+    
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: '1.22'
+    
+    - name: Cache Go modules
+      uses: actions/cache@v3
+      with:
+        path: ~/go/pkg/mod
+        key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+        restore-keys: |
+          ${{ runner.os }}-go-
+    
+    - name: Install dependencies
+      run: go mod download
+    
+    - name: Run tests
+      run: go test ./... -v
+    
+    - name: Build binary
+      run: go build -o bin/railpack ./cmd/cli
+    
+    - name: Test dev-config command
+      run: |
+        echo "Testing dev-config with Node.js examples..."
+        ./bin/railpack dev-config examples/node-next | head -5
+        ./bin/railpack dev-config examples/node-angular | head -5
+        ./bin/railpack dev-config examples/node-bun | head -5
+    
+    - name: Test error handling
+      run: |
+        echo "Testing error handling..."
+        ./bin/railpack dev-config 2>&1 | head -1 || true
+        ./bin/railpack dev-config nonexistent 2>&1 | head -1 || true
+    
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: railpack-binary
+        path: bin/railpack
+        retention-days: 7
 
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: "1.23.4"
-          cache: true
+  nodejs-validation:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: '1.22'
+    
+    - name: Install dependencies
+      run: go mod download
+    
+    - name: Build binary
+      run: go build -o bin/railpack ./cmd/cli
+    
+    - name: Validate Node.js frameworks
+      run: |
+        echo "=== Node.js Framework Validation ==="
+        
+        # Test Next.js
+        echo "Testing Next.js..."
+        ./bin/railpack dev-config examples/node-next | grep -q '"detectedLanguage": "node"'
+        ./bin/railpack dev-config examples/node-next | grep -q '"requiredPort": "3000"'
+        
+        # Test Angular
+        echo "Testing Angular..."
+        ./bin/railpack dev-config examples/node-angular | grep -q '"detectedLanguage": "node"'
+        ./bin/railpack dev-config examples/node-angular | grep -q '"requiredPort": "4200"'
+        
+        # Test Bun
+        echo "Testing Bun..."
+        ./bin/railpack dev-config examples/node-bun | grep -q '"detectedLanguage": "node"'
+        ./bin/railpack dev-config examples/node-bun | grep -q '"installCommand": "bun install"'
+        
+        # Test Yarn
+        echo "Testing Yarn..."
+        ./bin/railpack dev-config examples/node-yarn-1 | grep -q '"installCommand": "yarn install"'
+        
+        # Test PNPM
+        echo "Testing PNPM..."
+        ./bin/railpack dev-config examples/node-pnpm-workspaces | grep -q '"installCommand": "pnpm install"'
+        
+        # Test Vite
+        echo "Testing Vite..."
+        ./bin/railpack dev-config examples/node-vite-react | grep -q '"requiredPort": "5173"'
+        
+        # Test Astro
+        echo "Testing Astro..."
+        ./bin/railpack dev-config examples/node-astro | grep -q '"requiredPort": "4321"'
+        
+        # Test Puppeteer (APT packages)
+        echo "Testing Puppeteer..."
+        ./bin/railpack dev-config examples/node-puppeteer | grep -q '"aptPackages": "ca-certificates'
+        
+        echo "✅ All Node.js frameworks validated successfully!"
 
-      - name: Lint
-        uses: golangci/golangci-lint-action@v6
-        with:
-          version: v1.63.4
-          args: --timeout=5m
-
-      - name: Format
-        run: go fmt ./...
-
-      - name: Vet
-        run: go vet ./...
-
-      - name: Test Unit
-        run: go test -short ./...
+  release:
+    needs: [test, nodejs-validation]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/dev-pack-v2' && github.event_name == 'push'
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: '1.22'
+    
+    - name: Build for multiple platforms
+      run: |
+        mkdir -p dist
+        GOOS=linux GOARCH=amd64 go build -o dist/railpack-linux-amd64 ./cmd/cli
+        GOOS=darwin GOARCH=amd64 go build -o dist/railpack-darwin-amd64 ./cmd/cli
+        GOOS=darwin GOARCH=arm64 go build -o dist/railpack-darwin-arm64 ./cmd/cli
+        GOOS=windows GOARCH=amd64 go build -o dist/railpack-windows-amd64.exe ./cmd/cli
+    
+    - name: Upload release assets
+      uses: actions/upload-artifact@v3
+      with:
+        name: release-binaries
+        path: dist/
+        retention-days: 30

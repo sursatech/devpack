@@ -174,6 +174,11 @@ func (p *JavaProvider) getJavaDevEnvVars(ctx *generate.GenerateContext) map[stri
 	envVars["JAVA_OPTS"] = "-Xmx512m -Xms256m"
 	envVars["SPRING_PROFILES_ACTIVE"] = "development"
 
+	// Add SERVER_PORT for all Java web applications
+	if port := p.getDevPort(ctx); port != "" {
+		envVars["SERVER_PORT"] = port
+	}
+
 	// Framework-specific development settings
 	if p.usesSpringBoot(ctx) {
 		envVars["SPRING_DEVTOOLS_RESTART_ENABLED"] = "true"

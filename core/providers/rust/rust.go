@@ -54,7 +54,7 @@ func (p *RustProvider) Plan(ctx *generate.GenerateContext) error {
 	p.Build(ctx, build)
 
 	maps.Copy(ctx.Deploy.Variables, p.GetRustEnvVars(ctx))
-	
+
 	// In development mode, we don't need the build step output since we use cargo run
 	if ctx.Dev {
 		ctx.Deploy.AddInputs([]plan.Layer{
@@ -69,12 +69,14 @@ func (p *RustProvider) Plan(ctx *generate.GenerateContext) error {
 			}),
 		})
 	}
-	
+
 	ctx.Deploy.StartCmd = p.GetStartCommand(ctx)
-	
+
 	// Add StartCmdHost for development mode (same as StartCmd for Rust)
 	if ctx.Dev {
 		ctx.Deploy.StartCmdHost = p.GetStartCommand(ctx)
+		// Set default port based on detected framework
+		ctx.Deploy.RequiredPort = p.getDefaultPort(ctx)
 	}
 
 	return nil
@@ -113,6 +115,20 @@ func (p *RustProvider) GetStartCommand(ctx *generate.GenerateContext) string {
 func (p *RustProvider) GetDevStartCommand(ctx *generate.GenerateContext) string {
 	// In development mode, use cargo run for hot reloading
 	// This allows for faster iteration without pre-building binaries
+
+	// Get the default port for the framework
+	port := p.getDefaultPort(ctx)
+
+	// If a port is detected, add it to the command
+	if port != "" {
+		// For Rocket framework, add port and address as CLI args
+		if p.isRocket(ctx) {
+			return fmt.Sprintf("cargo run -- --port %s --address 0.0.0.0", port)
+		}
+		// For other frameworks, they typically read from environment or code
+		// Just return cargo run as they configure port in code
+	}
+
 	return "cargo run"
 }
 
@@ -327,9 +343,54 @@ func (p *RustProvider) GetRustEnvVars(ctx *generate.GenerateContext) map[string]
 		envVars["RUST_LOG"] = "debug"
 		envVars["ROCKET_ENV"] = "development"
 		envVars["ROCKET_LOG_LEVEL"] = "debug"
+
+		// Add ROCKET_PORT if we can detect it
+		port := p.getDefaultPort(ctx)
+		if port != "" && p.isRocket(ctx) {
+			envVars["ROCKET_PORT"] = port
+		}
 	}
 
 	return envVars
+}
+
+// getDefaultPort returns the default port based on the detected web framework
+func (p *RustProvider) getDefaultPort(ctx *generate.GenerateContext) string {
+	cargoToml, err := ctx.App.ReadFile("Cargo.toml")
+	if err != nil {
+		return ""
+	}
+
+	cargoContent := string(cargoToml)
+
+	// Detect web framework and return default port
+	if strings.Contains(cargoContent, "rocket") {
+		return "8000"
+	}
+	if strings.Contains(cargoContent, "actix-web") {
+		return "8080"
+	}
+	if strings.Contains(cargoContent, "axum") {
+		return "3000"
+	}
+	if strings.Contains(cargoContent, "warp") {
+		return "3030"
+	}
+	if strings.Contains(cargoContent, "tide") {
+		return "8080"
+	}
+
+	// Default for unknown web frameworks
+	return ""
+}
+
+// isRocket checks if the project uses Rocket framework
+func (p *RustProvider) isRocket(ctx *generate.GenerateContext) bool {
+	cargoToml, err := ctx.App.ReadFile("Cargo.toml")
+	if err != nil {
+		return false
+	}
+	return strings.Contains(string(cargoToml), "rocket")
 }
 
 func (p *RustProvider) InstallMisePackages(ctx *generate.GenerateContext, miseStep *generate.MiseStepBuilder) {

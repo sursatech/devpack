@@ -36,12 +36,9 @@ func main() {
 	}
 
 	commands := []*urfave.Command{
-		cli.BuildCommand,
-		cli.PrepareCommand,
 		cli.InfoCommand,
 		cli.PlanCommand,
-		cli.SchemaCommand,
-		cli.FrontendCommand,
+		cli.DevConfigCommand,
 	}
 
 	// Disable the slice flag separator for all commands

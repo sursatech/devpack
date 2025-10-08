@@ -87,6 +87,18 @@ func (p *RubyProvider) Plan(ctx *generate.GenerateContext) error {
 	maps.Copy(ctx.Deploy.Variables, p.GetRubyEnvVars(ctx))
 	p.AddRuntimeDeps(ctx)
 
+	// Add dev mode support
+	if ctx.Dev {
+		if devCmd := p.GetDevStartCommand(ctx); devCmd != "" {
+			ctx.Deploy.StartCmd = devCmd
+			ctx.Deploy.StartCmdHost = devCmd
+		}
+		// Set required port for web applications
+		if port := p.getDevPort(ctx); port != "" {
+			ctx.Deploy.RequiredPort = port
+		}
+	}
+
 	ctx.Deploy.AddInputs([]plan.Layer{
 		plan.NewStepLayer(miseStep.Name(), plan.Filter{
 			Include: miseStep.GetOutputPaths(),
@@ -271,13 +283,65 @@ func (p *RubyProvider) getRubyVersion(ctx *generate.GenerateContext) string {
 }
 
 func (p *RubyProvider) GetRubyEnvVars(ctx *generate.GenerateContext) map[string]string {
-	return map[string]string{
-		"BUNDLE_GEMFILE":   "/app/Gemfile",
-		"GEM_PATH":         "/usr/local/bundle",
-		"GEM_HOME":         "/usr/local/bundle",
+	envVars := map[string]string{
 		"MALLOC_ARENA_MAX": "2",
-		"LD_PRELOAD":       "/usr/lib/x86_64-linux-gnu/libjemalloc.so",
 	}
+
+	// Use local paths for development, container paths for production
+	if ctx.Dev {
+		envVars["BUNDLE_GEMFILE"] = "./Gemfile"
+		envVars["GEM_PATH"] = "./vendor/bundle"
+		envVars["GEM_HOME"] = "./vendor/bundle"
+	} else {
+		envVars["BUNDLE_GEMFILE"] = "/app/Gemfile"
+		envVars["GEM_PATH"] = "/usr/local/bundle"
+		envVars["GEM_HOME"] = "/usr/local/bundle"
+		envVars["LD_PRELOAD"] = "/usr/lib/x86_64-linux-gnu/libjemalloc.so"
+	}
+
+	return envVars
+}
+
+// GetDevStartCommand returns a development-friendly start command
+func (p *RubyProvider) GetDevStartCommand(ctx *generate.GenerateContext) string {
+	app := ctx.App
+
+	if p.usesRails(ctx) {
+		// Rails with database migration
+		if app.HasMatch("db/migrate") {
+			if app.HasMatch("rails") {
+				return "rake db:migrate && bundle exec rails server -b 0.0.0.0 -p 3000"
+			}
+			return "rake db:migrate && bundle exec bin/rails server -b 0.0.0.0 -p 3000"
+		}
+		// Rails without migration
+		if app.HasMatch("rails") {
+			return "bundle exec rails server -b 0.0.0.0 -p 3000"
+		}
+		return "bundle exec bin/rails server -b 0.0.0.0 -p 3000"
+	} else if app.HasMatch("config/environment.rb") && app.HasMatch("script") {
+		return "bundle exec ruby script/server -b 0.0.0.0 -p 3000"
+	} else if app.HasMatch("config.ru") {
+		// Sinatra or Rack app
+		return "bundle exec rackup config.ru -o 0.0.0.0 -p 4567"
+	} else if app.HasMatch("Rakefile") {
+		return "bundle exec rake"
+	}
+
+	return ""
+}
+
+// getDevPort returns the appropriate port for development mode based on framework
+func (p *RubyProvider) getDevPort(ctx *generate.GenerateContext) string {
+	if p.usesRails(ctx) {
+		return "3000" // Rails default port
+	}
+	if ctx.App.HasMatch("config.ru") {
+		// Sinatra or Rack app
+		return "4567" // Sinatra default port
+	}
+	// Default for other Ruby web apps
+	return "3000"
 }
 
 func (p *RubyProvider) usesPostgres(ctx *generate.GenerateContext) bool {
