@@ -1,0 +1,173 @@
+{
+ "caches": {
+  "apt": {
+   "directory": "/var/cache/apt",
+   "type": "locked"
+  },
+  "apt-lists": {
+   "directory": "/var/lib/apt/lists",
+   "type": "locked"
+  }
+ },
+ "deploy": {
+  "base": {
+   "image": "ghcr.io/railwayapp/railpack-runtime:latest"
+  },
+  "inputs": [
+   {
+    "include": [
+     "/mise/shims",
+     "/mise/installs",
+     "/usr/local/bin/mise",
+     "/etc/mise/config.toml",
+     "/root/.local/state/mise"
+    ],
+    "step": "packages:mise"
+   },
+   {
+    "include": [
+     ".venv"
+    ],
+    "step": "build"
+   },
+   {
+    "exclude": [
+     ".venv"
+    ],
+    "include": [
+     "."
+    ],
+    "step": "build"
+   }
+  ],
+  "paths": [
+   "/app/.venv/bin"
+  ],
+  "startCommand": "/app/.venv/bin/python main.py",
+  "variables": {
+   "IN_CONTAINER": "1",
+   "PIP_DEFAULT_TIMEOUT": "100",
+   "PIP_DISABLE_PIP_VERSION_CHECK": "1",
+   "PYTHONDONTWRITEBYTECODE": "1",
+   "PYTHONFAULTHANDLER": "1",
+   "PYTHONHASHSEED": "random",
+   "PYTHONPATH": "/app",
+   "PYTHONUNBUFFERED": "1"
+  }
+ },
+ "steps": [
+  {
+   "caches": [
+    "apt",
+    "apt-lists"
+   ],
+   "commands": [
+    {
+     "cmd": "sh -c 'apt-get update \u0026\u0026 apt-get install -y build-essential g++ gcc libc6-dev python3-dev'",
+     "customName": "install apt packages: build-essential g++ gcc libc6-dev python3-dev"
+    }
+   ],
+   "inputs": [
+    {
+     "image": "ghcr.io/railwayapp/railpack-builder:latest"
+    }
+   ],
+   "name": "packages:apt:build"
+  },
+  {
+   "assets": {
+    "mise.toml": "[mise.toml]"
+   },
+   "commands": [
+    {
+     "path": "/mise/shims"
+    },
+    {
+     "customName": "create mise config",
+     "name": "mise.toml",
+     "path": "/etc/mise/config.toml"
+    },
+    {
+     "cmd": "sh -c 'mise trust -a \u0026\u0026 mise install'",
+     "customName": "install mise packages: pipx, pipx:pipenv, python"
+    }
+   ],
+   "inputs": [
+    {
+     "step": "packages:apt:build"
+    }
+   ],
+   "name": "packages:mise",
+   "variables": {
+    "MISE_CACHE_DIR": "/mise/cache",
+    "MISE_CONFIG_DIR": "/mise",
+    "MISE_DATA_DIR": "/mise",
+    "MISE_INSTALLS_DIR": "/mise/installs",
+    "MISE_NODE_VERIFY": "false",
+    "MISE_SHIMS_DIR": "/mise/shims"
+   }
+  },
+  {
+   "commands": [
+    {
+     "path": "/root/.local/bin"
+    },
+    {
+     "path": "/app/.venv/bin"
+    },
+    {
+     "dest": "Pipfile",
+     "src": "Pipfile"
+    },
+    {
+     "dest": "Pipfile.lock",
+     "src": "Pipfile.lock"
+    },
+    {
+     "cmd": "python -m venv /app/.venv"
+    },
+    {
+     "cmd": "/app/.venv/bin/pip install pipenv"
+    },
+    {
+     "cmd": "/app/.venv/bin/pipenv install --deploy --ignore-pipfile"
+    }
+   ],
+   "inputs": [
+    {
+     "step": "packages:mise"
+    }
+   ],
+   "name": "install",
+   "variables": {
+    "PIPENV_CHECK_UPDATE": "false",
+    "PIPENV_IGNORE_VIRTUALENVS": "1",
+    "PIPENV_VENV_IN_PROJECT": "1",
+    "PIP_DEFAULT_TIMEOUT": "100",
+    "PIP_DISABLE_PIP_VERSION_CHECK": "1",
+    "PYTHONDONTWRITEBYTECODE": "1",
+    "PYTHONFAULTHANDLER": "1",
+    "PYTHONHASHSEED": "random",
+    "PYTHONUNBUFFERED": "1",
+    "VIRTUAL_ENV": "/app/.venv"
+   }
+  },
+  {
+   "inputs": [
+    {
+     "step": "install"
+    },
+    {
+     "include": [
+      "."
+     ],
+     "local": true
+    }
+   ],
+   "name": "build",
+   "secrets": [
+    "*"
+   ]
+  }
+ ]
+}
