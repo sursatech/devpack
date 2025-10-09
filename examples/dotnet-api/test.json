@@ -1,0 +1,4 @@
+{
+  "provider": "dotnet",
+  "expectedOutput": "Now listening on"
+}

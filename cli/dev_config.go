@@ -245,6 +245,11 @@ func extractDevConfig(buildResult *core.BuildResult) *DevConfigOutput {
 						if strings.Contains(cmdStr, "cargo build") {
 							installCommands = append(installCommands, cmdStr)
 						}
+
+						// .NET restore
+						if strings.Contains(cmdStr, "dotnet restore") {
+							installCommands = append(installCommands, cmdStr)
+						}
 					}
 				}
 
